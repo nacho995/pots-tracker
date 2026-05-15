@@ -50,15 +50,27 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserContext, HttpContextUserContext>();
 builder.Services.AddScoped<AuthService>();
 
-if (builder.Environment.IsDevelopment())
+// Email provider selection. Development defaults to Console (logs links).
+// Production must set Email__Provider=Resend + Resend__ApiKey + Resend__FromAddress.
+var emailProvider = builder.Configuration["Email:Provider"]
+    ?? (builder.Environment.IsDevelopment() ? "Console" : null)
+    ?? throw new InvalidOperationException(
+        "Email:Provider is required outside Development. Set it to 'Resend' (and provide " +
+        "Resend:ApiKey + Resend:FromAddress) or 'Console' to fall back to log-only sending.");
+
+switch (emailProvider.ToLowerInvariant())
 {
-    builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();
-}
-else
-{
-    throw new InvalidOperationException(
-        "No IEmailSender configured for non-Development. Register a real provider " +
-        "(SendGrid, Postmark, SES, etc.) before deploying.");
+    case "console":
+        builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();
+        break;
+    case "resend":
+        var resend = builder.Configuration.GetSection("Resend").Get<ResendOptions>()
+            ?? throw new InvalidOperationException("Resend section missing.");
+        builder.Services.AddSingleton(resend);
+        builder.Services.AddHttpClient<IEmailSender, ResendEmailSender>();
+        break;
+    default:
+        throw new InvalidOperationException($"Unknown Email:Provider '{emailProvider}'.");
 }
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -85,12 +97,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 builder.Services.AddAuthorization();
 
+// Cors:AllowedOrigins is a comma- or space-separated list. In production where
+// the API also serves the SPA from the same origin, this can be empty (no CORS
+// needed); we still register a permissive-by-config policy for any extra origins
+// (e.g. Capacitor wrapper, dev tunnels) the operator wants to whitelist.
+var corsOrigins = (builder.Configuration["Cors:AllowedOrigins"] ?? "")
+    .Split(new[] { ',', ' ', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 builder.Services.AddCors(o =>
 {
-    o.AddDefaultPolicy(p => p
-        .WithOrigins("http://localhost:5185", "https://localhost:7211")
-        .AllowAnyHeader()
-        .AllowAnyMethod());
+    o.AddDefaultPolicy(p =>
+    {
+        if (corsOrigins.Length > 0) p.WithOrigins(corsOrigins);
+        p.AllowAnyHeader().AllowAnyMethod();
+    });
 });
 
 builder.Services.AddRateLimiter(o =>
@@ -130,7 +149,21 @@ else
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// In production the API container also serves the published Blazor WASM client
+// (see Dockerfile — published Pots.Client is copied into wwwroot). Same-origin
+// hosting removes the need for CORS in the happy path and lets the SPA call
+// the API with relative URLs.
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
+// Fly terminates TLS at the edge and forwards HTTP. Calling UseHttpsRedirection
+// inside the container would try to redirect to https on the internal port and
+// loop. Skip it in non-Development; HSTS + the edge TLS are enough.
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -148,5 +181,10 @@ app.MapPreventiveActionEndpoints();
 app.MapTrendsEndpoints();
 app.MapReportEndpoints();
 app.MapSharedEndpoints();
+
+// SPA fallback — any non-API path (i.e. anything not matched by an endpoint
+// above) returns the Blazor index.html so client-side routing can take over
+// after a hard refresh on /today, /profile, etc.
+app.MapFallbackToFile("index.html");
 
 app.Run();

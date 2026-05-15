@@ -1,0 +1,17 @@
+**/bin
+**/obj
+**/.vs
+**/.vscode
+**/.idea
+.git
+.gitignore
+.claude
+.config
+.DS_Store
+node_modules
+docker-compose.yml
+docker-init
+README.md
+CLAUDE.md
+tests
+*.user

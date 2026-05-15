@@ -32,6 +32,9 @@ Desktop.ini
 secrets/
 appsettings.Development.json
 appsettings.Local.json
+# Blazor WASM ships its appsettings to the browser — never put secrets there;
+# committing dev-base-URL is safe and required for `dotnet run` of the client.
+!src/Pots.Client/wwwroot/appsettings.Development.json
 
 # =============================================================================
 # Node / JS / TS (SvelteKit, Next.js, Vite + React)
