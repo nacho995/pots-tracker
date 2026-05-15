@@ -1,0 +1,288 @@
+/* Big rounded status "pillows" — the signature element. Each is a 3D-looking
+   tap target with a soft inner highlight, a colored chip that gently scales on
+   hover. Designed to be reassuring to tap on bad days. */
+
+.status-grid {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.status-btn {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    grid-template-areas:
+        "chip label"
+        "chip hint";
+    column-gap: 1.1rem;
+    row-gap: 0.25rem;
+    align-items: center;
+    padding: 1.35rem 1.5rem;
+    min-height: 116px;
+    text-align: left;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-xl);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font);
+    cursor: pointer;
+    transition: transform 220ms var(--ease),
+                box-shadow 220ms var(--ease),
+                border-color 220ms var(--ease);
+    width: 100%;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+    overflow: hidden;
+}
+
+.status-btn::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, transparent 30%);
+    pointer-events: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    .status-btn::before {
+        background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 30%);
+    }
+}
+
+.status-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: transparent;
+    box-shadow: var(--shadow-lg);
+}
+
+.status-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: var(--shadow-press);
+}
+
+.status-btn:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+}
+
+.status-btn__chip {
+    grid-area: chip;
+    align-self: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    position: relative;
+    transition: transform 220ms var(--ease);
+    box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.08),
+                inset 0 2px 4px rgba(255, 255, 255, 0.25);
+}
+
+.status-btn:hover:not(:disabled) .status-btn__chip { transform: scale(1.06); }
+
+.status-btn--green  .status-btn__chip { background: var(--good); }
+.status-btn--orange .status-btn__chip { background: var(--warn); }
+.status-btn--red    .status-btn__chip { background: var(--bad); }
+
+.status-btn--green:hover:not(:disabled) { border-color: var(--good); }
+.status-btn--orange:hover:not(:disabled) { border-color: var(--warn); }
+.status-btn--red:hover:not(:disabled) { border-color: var(--bad); }
+
+.status-btn__label {
+    grid-area: label;
+    font-family: var(--font);
+    font-size: 1.45rem;
+    font-weight: 700;
+    line-height: 1.0;
+    letter-spacing: -0.02em;
+    color: var(--text);
+}
+
+.status-btn__hint {
+    grid-area: hint;
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+/* ---------- 24h history pills ---------- */
+
+.status-history {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.4rem;
+}
+
+.status-history__item { display: contents; }
+
+.status-history__row {
+    display: grid;
+    grid-template-columns: 14px 56px 1fr auto;
+    gap: 0.85rem;
+    align-items: center;
+    width: 100%;
+    padding: 0.85rem 0.9rem;
+    min-height: 48px;
+    background: var(--surface-sunk);
+    border: 1px solid transparent;
+    border-radius: var(--r-md);
+    font-family: var(--font);
+    font-size: 0.92rem;
+    text-align: left;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color 180ms var(--ease), background 180ms var(--ease);
+}
+
+.status-history__row:hover { border-color: var(--rule); }
+.status-history__row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.status-history__row.is-editing {
+    background: var(--accent-tint);
+    border-color: var(--accent-soft);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.status-history__time {
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.status-history__label { color: var(--text); font-weight: 500; }
+
+.status-history__chev {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.status-history__edit {
+    padding: 0.9rem;
+    background: var(--accent-tint);
+    border: 1px solid var(--accent-soft);
+    border-top: 0;
+    border-radius: 0 0 var(--r-md) var(--r-md);
+    margin-top: -0.4rem;
+    display: grid;
+    gap: 0.75rem;
+}
+
+/* ---------- Status switch pills (post-press correction) ---------- */
+
+.status-switch {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.status-switch__pill {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0.5rem;
+    min-height: 52px;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-full);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 200ms var(--ease),
+                background 200ms var(--ease),
+                color 200ms var(--ease);
+    box-shadow: var(--shadow-sm);
+}
+
+.status-switch__pill:hover:not(:disabled) { border-color: var(--accent-soft); }
+
+.status-switch__pill.is-current {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    cursor: default;
+    box-shadow: 0 0 0 4px var(--accent-glow);
+}
+
+.status-switch__pill:disabled:not(.is-current) {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.status-switch__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+}
+
+.status-switch__pill--green  .status-switch__dot { background: var(--good); }
+.status-switch__pill--orange .status-switch__dot { background: var(--warn); }
+.status-switch__pill--red    .status-switch__dot { background: var(--bad); }
+
+.status-switch__pill.is-current .status-switch__dot { background: white; }
+
+/* ---------- Nav tiles ---------- */
+
+.nav-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.6rem;
+}
+
+.nav-tile {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--rule);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+    min-height: 80px;
+    transition: border-color 180ms var(--ease),
+                transform 180ms var(--ease),
+                box-shadow 180ms var(--ease);
+    box-shadow: var(--shadow-sm);
+}
+
+.nav-tile:hover, .nav-tile:focus-visible {
+    border-color: var(--accent-soft);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.nav-tile--accent {
+    background: var(--accent-tint);
+    border-color: var(--accent-soft);
+}
+
+.nav-tile__title {
+    font-family: var(--font);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+    letter-spacing: -0.005em;
+}
+
+.nav-tile__hint {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .status-btn:hover:not(:disabled),
+    .nav-tile:hover, .nav-tile:focus-visible {
+        transform: none;
+        box-shadow: var(--shadow-sm);
+    }
+}

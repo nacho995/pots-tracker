@@ -1,0 +1,354 @@
+@page "/trends"
+@inject AuthClient Auth
+@inject TrendsClient TrendsClient
+@inject NavigationManager Nav
+
+<PageTitle>Tendencias — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    <p class="eyebrow">Tendencias · últimos @days días</p>
+    <h1><span class="accent-rule"></span>Lo que observamos.</h1>
+    <p class="lead">
+        Esto es <em>asociación</em>, no causa. Sirve para ver patrones que
+        después puedes hablar con tu médico.
+    </p>
+
+    <div class="range-selector">
+        <button class="@(days == 7 ? "active" : "")" @onclick="() => Reload(7)">7 d</button>
+        <button class="@(days == 30 ? "active" : "")" @onclick="() => Reload(30)">30 d</button>
+        <button class="@(days == 90 ? "active" : "")" @onclick="() => Reload(90)">90 d</button>
+    </div>
+
+    @if (loading)
+    {
+        <p>Cargando...</p>
+    }
+    else if (trends is null)
+    {
+        <p class="muted">No hay datos suficientes todavía. Sigue registrando algunos días.</p>
+    }
+    else
+    {
+        <section class="card flow">
+            <p class="card__label">Distribución de días</p>
+            <div class="status-totals">
+                <div class="status-total status-total--green">
+                    <span class="status-total__num tabular">@trends.GreenCount</span>
+                    <span class="status-total__label">Bien</span>
+                </div>
+                <div class="status-total status-total--orange">
+                    <span class="status-total__num tabular">@trends.OrangeCount</span>
+                    <span class="status-total__label">Regular</span>
+                </div>
+                <div class="status-total status-total--red">
+                    <span class="status-total__num tabular">@trends.RedCount</span>
+                    <span class="status-total__label">Mal</span>
+                </div>
+            </div>
+        </section>
+
+        <section class="card flow">
+            <p class="card__label">Episodios · @trends.EpisodeCount en @trends.RangeDays días</p>
+            @if (trends.EpisodesPerWeek.Count == 0)
+            {
+                <p class="muted">Ningún episodio registrado en este rango. Buenas noticias.</p>
+            }
+            else
+            {
+                <ul class="bar-list">
+                    @foreach (var w in trends.EpisodesPerWeek)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label tabular">@w.WeekStart</span>
+                            <span class="bar-row__bar"
+                                  style="--w: @(MaxWeek(trends) == 0 ? 0 : (int)(100.0 * w.Count / MaxWeek(trends)))%">
+                            </span>
+                            <span class="bar-row__count tabular">@w.Count</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+
+        @if (trends.TopTriggers.Count > 0)
+        {
+            <section class="card flow">
+                <p class="card__label">Posibles desencadenantes asociados a episodios</p>
+                <ul class="bar-list">
+                    @foreach (var t in trends.TopTriggers)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@TriggerEs(t.Trigger)</span>
+                            <span class="bar-row__bar"
+                                  style="--w: @(MaxTrigger(trends) == 0 ? 0 : (int)(100.0 * t.Count / MaxTrigger(trends)))%">
+                            </span>
+                            <span class="bar-row__count tabular">@t.Count</span>
+                        </li>
+                    }
+                </ul>
+                <p class="muted">
+                    Estos son los desencadenantes que <em>tú anotaste</em> como
+                    sospechosos cuando registraste cada episodio. No es un diagnóstico.
+                </p>
+            </section>
+        }
+
+        <section class="card flow">
+            <p class="card__label">Carga sintomática media (0-10)</p>
+            <ul class="avg-list">
+                <li>Fatiga · <strong class="tabular">@FmtAvg(trends.AvgFatigue)</strong></li>
+                <li>Niebla mental · <strong class="tabular">@FmtAvg(trends.AvgBrainFog)</strong></li>
+                <li>Mareo · <strong class="tabular">@FmtAvg(trends.AvgDizziness)</strong></li>
+            </ul>
+            <p class="muted">Calculado sobre los días en los que registraste síntomas.</p>
+        </section>
+
+        @if (trends.BestWorst is { } bw)
+        {
+            <section class="card flow">
+                <p class="card__label">Mejor y peor día</p>
+                <div class="best-worst">
+                    <div class="best-worst__cell">
+                        <p class="best-worst__label">Mejor</p>
+                        <p class="best-worst__day">@(bw.BestDay ?? "—")</p>
+                        <p class="muted">@bw.BestGreen verdes · @bw.BestRed rojos</p>
+                    </div>
+                    <div class="best-worst__cell">
+                        <p class="best-worst__label">Peor</p>
+                        <p class="best-worst__day">@(bw.WorstDay ?? "—")</p>
+                        <p class="muted">@bw.WorstRed rojos · @bw.WorstGreen verdes</p>
+                    </div>
+                </div>
+            </section>
+        }
+
+        @if (trends.SleepQualityVsSymptoms.Count > 0)
+        {
+            <section class="card flow">
+                <p class="card__label">Calidad del sueño asociada con carga sintomática</p>
+                <ul class="bar-list">
+                    @foreach (var r in trends.SleepQualityVsSymptoms)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@PrettyBucket(r.Bucket)</span>
+                            <span class="bar-row__bar"
+                                  style="--w: @(MaxAssoc(trends.SleepQualityVsSymptoms) == 0 ? 0 : (int)(100.0 * (r.AvgSymptomBurden ?? 0) / 10))%">
+                            </span>
+                            <span class="bar-row__count tabular">@FmtAvg(r.AvgSymptomBurden) (@r.DayCount d)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (trends.HydrationVsSymptoms.Count > 0)
+        {
+            <section class="card flow">
+                <p class="card__label">Hidratación asociada con carga sintomática</p>
+                <ul class="bar-list">
+                    @foreach (var r in trends.HydrationVsSymptoms)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@PrettyBucket(r.Bucket)</span>
+                            <span class="bar-row__bar"
+                                  style="--w: @((int)(100.0 * (r.AvgSymptomBurden ?? 0) / 10))%">
+                            </span>
+                            <span class="bar-row__count tabular">@FmtAvg(r.AvgSymptomBurden) (@r.DayCount d)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (trends.CompressionVsSymptoms is not null || trends.NoCompressionVsSymptoms is not null)
+        {
+            <section class="card flow">
+                <p class="card__label">Compresión asociada con carga sintomática</p>
+                <ul class="bar-list">
+                    @if (trends.CompressionVsSymptoms is { } cv)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@cv.Bucket</span>
+                            <span class="bar-row__bar" style="--w: @((int)(100.0 * (cv.AvgSymptomBurden ?? 0) / 10))%"></span>
+                            <span class="bar-row__count tabular">@FmtAvg(cv.AvgSymptomBurden) (@cv.DayCount d)</span>
+                        </li>
+                    }
+                    @if (trends.NoCompressionVsSymptoms is { } nv)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@nv.Bucket</span>
+                            <span class="bar-row__bar" style="--w: @((int)(100.0 * (nv.AvgSymptomBurden ?? 0) / 10))%"></span>
+                            <span class="bar-row__count tabular">@FmtAvg(nv.AvgSymptomBurden) (@nv.DayCount d)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (trends.SkipBreakfastVsSymptoms is not null || trends.RegularBreakfastVsSymptoms is not null)
+        {
+            <section class="card flow">
+                <p class="card__label">Saltarse el desayuno asociado con carga sintomática</p>
+                <ul class="bar-list">
+                    @if (trends.SkipBreakfastVsSymptoms is { } sk)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@sk.Bucket</span>
+                            <span class="bar-row__bar" style="--w: @((int)(100.0 * (sk.AvgSymptomBurden ?? 0) / 10))%"></span>
+                            <span class="bar-row__count tabular">@FmtAvg(sk.AvgSymptomBurden) (@sk.DayCount d)</span>
+                        </li>
+                    }
+                    @if (trends.RegularBreakfastVsSymptoms is { } reg)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@reg.Bucket</span>
+                            <span class="bar-row__bar" style="--w: @((int)(100.0 * (reg.AvgSymptomBurden ?? 0) / 10))%"></span>
+                            <span class="bar-row__count tabular">@FmtAvg(reg.AvgSymptomBurden) (@reg.DayCount d)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (trends.AmbientTempVsSymptoms.Count > 0)
+        {
+            <section class="card flow">
+                <p class="card__label">Temperatura ambiente asociada con carga sintomática</p>
+                <ul class="bar-list">
+                    @foreach (var r in trends.AmbientTempVsSymptoms)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@PrettyBucket(r.Bucket)</span>
+                            <span class="bar-row__bar" style="--w: @((int)(100.0 * (r.AvgSymptomBurden ?? 0) / 10))%"></span>
+                            <span class="bar-row__count tabular">@FmtAvg(r.AvgSymptomBurden) (@r.DayCount d)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (trends.MenstrualPhaseVsSymptoms.Count > 0)
+        {
+            <section class="card flow">
+                <p class="card__label">Fase del ciclo asociada con carga sintomática</p>
+                <ul class="bar-list">
+                    @foreach (var r in trends.MenstrualPhaseVsSymptoms)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@PrettyBucket(r.Bucket)</span>
+                            <span class="bar-row__bar" style="--w: @((int)(100.0 * (r.AvgSymptomBurden ?? 0) / 10))%"></span>
+                            <span class="bar-row__count tabular">@FmtAvg(r.AvgSymptomBurden) (@r.DayCount d)</span>
+                        </li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (trends.ExerciseTolerance is { } ext)
+        {
+            <section class="card flow">
+                <p class="card__label">Tolerancia al ejercicio</p>
+                <ul class="avg-list">
+                    <li>Sesiones registradas · <strong class="tabular">@ext.TotalSessions</strong></li>
+                    <li>Con síntomas post-ejercicio · <strong class="tabular">@ext.SessionsWithPostSymptoms</strong></li>
+                    @if (ext.SymptomBurdenWhenExercised.HasValue)
+                    {
+                        <li>Carga sintomática los días que entrenó · <strong class="tabular">@FmtAvg(ext.SymptomBurdenWhenExercised)</strong></li>
+                    }
+                    @if (ext.SymptomBurdenWhenNotExercised.HasValue)
+                    {
+                        <li>Carga sintomática los días que NO entrenó · <strong class="tabular">@FmtAvg(ext.SymptomBurdenWhenNotExercised)</strong></li>
+                    }
+                </ul>
+            </section>
+        }
+
+        @if (trends.ActionsAssociatedWithFewerReds.Count > 0)
+        {
+            <section class="card flow">
+                <p class="card__label">Acciones asociadas con menos días Rojos</p>
+                <ul class="bar-list">
+                    @foreach (var a in trends.ActionsAssociatedWithFewerReds)
+                    {
+                        <li class="bar-row">
+                            <span class="bar-row__label">@a.Action</span>
+                            <span class="bar-row__bar" style="--w: @((int)Math.Min(100, (a.DeltaPct ?? 0) * 5))%"></span>
+                            <span class="bar-row__count tabular">−@FmtAvg(a.DeltaPct)pp</span>
+                        </li>
+                    }
+                </ul>
+                <p class="muted">
+                    "−Xpp" = en los días en que sí hiciste esta acción, registraste menos episodios Rojos
+                    (en puntos porcentuales). <em>Asociación, no causa.</em>
+                </p>
+            </section>
+        }
+    }
+
+    <hr class="divider divider--ornament" aria-hidden="true" />
+
+    <p class="muted" style="text-align:center;">
+        <a href="/today" class="btn--link">Hoy</a>
+        &nbsp;·&nbsp;
+        <a href="/report" class="btn--link">Informe para tu médico</a>
+    </p>
+</div>
+
+@code {
+    private static readonly Dictionary<string, string> TriggerLabels = new()
+    {
+        ["Unknown"] = "Desconocido",
+        ["Heat"] = "Calor",
+        ["Dehydration"] = "Deshidratación",
+        ["MissedMeal"] = "Saltar comida",
+        ["Menstrual"] = "Menstruación",
+        ["Stress"] = "Estrés",
+        ["PoorSleep"] = "Mal sueño",
+        ["Exercise"] = "Ejercicio",
+        ["Infection"] = "Infección",
+        ["LongStanding"] = "Mucho de pie",
+        ["Alcohol"] = "Alcohol",
+        ["LargeMeal"] = "Comida grande",
+    };
+
+    private TrendsDto? trends;
+    private int days = 30;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        await Reload(30);
+    }
+
+    private async Task Reload(int newDays)
+    {
+        days = newDays;
+        loading = true;
+        try { trends = await TrendsClient.GetAsync(newDays); }
+        catch (HttpRequestException) { trends = null; }
+        finally { loading = false; }
+    }
+
+    private static int MaxWeek(TrendsDto t) =>
+        t.EpisodesPerWeek.Count == 0 ? 0 : t.EpisodesPerWeek.Max(w => w.Count);
+    private static int MaxTrigger(TrendsDto t) =>
+        t.TopTriggers.Count == 0 ? 0 : t.TopTriggers.Max(x => x.Count);
+    private static double MaxAssoc(List<AssociationRow> rows) =>
+        rows.Count == 0 ? 0 : rows.Max(r => r.AvgSymptomBurden ?? 0);
+    private static string FmtAvg(double? v) => v.HasValue ? v.Value.ToString("0.0") : "—";
+    private static string TriggerEs(string trigger) =>
+        TriggerLabels.TryGetValue(trigger, out var es) ? es : trigger;
+
+    // Buckets vienen prefijados con "1-", "2-" etc para mantener orden de
+    // ordenación; el prefijo se quita para mostrar.
+    private static string PrettyBucket(string bucket)
+    {
+        var dash = bucket.IndexOf('-');
+        return dash > 0 && dash < 3 ? bucket[(dash + 1)..] : bucket;
+    }
+}

@@ -1,0 +1,308 @@
+@page "/log/actions"
+@inject AuthClient Auth
+@inject ActionClient ActionClient
+@inject TargetsClient TargetsClient
+@inject NavigationManager Nav
+
+<PageTitle>Acciones del día — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    <p class="eyebrow">Registro · acciones · @FormatToday()</p>
+
+    @if (saved)
+    {
+        <h1><span class="accent-rule"></span>Anotado.</h1>
+        <p class="lead">Día cerrado. Te lo guardamos.</p>
+        <a href="/today" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;width:auto;">
+            <span>Volver a hoy</span><span class="arrow" aria-hidden="true">→</span>
+        </a>
+    }
+    else
+    {
+        <h1><span class="accent-rule"></span>Lo que has hecho hoy.</h1>
+        <p class="lead">Marca lo que sí. No te preocupes por lo que no.</p>
+
+        <EditForm Model="this" OnValidSubmit="SaveAsync" class="flow">
+
+            <section class="card flow">
+                <p class="card__label">Hidratación</p>
+                <label for="fluid">Líquido total (ml)</label>
+                <input id="fluid" type="number" min="0" max="20000" @bind="form.FluidMl" placeholder="2500" />
+
+                <label class="checkbox-row"><input type="checkbox" @bind="form.ElectrolyteTaken" /><span>Tomé bebida con electrolitos.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.MorningWaterBeforeStanding" /><span>Bebí agua antes de levantarme.</span></label>
+
+                <label for="urine">Color de la orina</label>
+                <select id="urine" class="text-input" @bind="form.UrineColor">
+                    <option value="">— sin especificar —</option>
+                    <option value="Pale">Clara</option>
+                    <option value="Dark">Oscura</option>
+                    <option value="Unsure">No estoy segura</option>
+                </select>
+            </section>
+
+            @if (saltTargetEnabled)
+            {
+                <section class="card flow">
+                    <p class="card__label">Sal · prescrita por tu médico</p>
+                    <label class="checkbox-row">
+                        <input type="checkbox" @bind="form.SaltTargetReached" />
+                        <span>Llegué a mi objetivo de sal.</span>
+                    </label>
+                </section>
+            }
+
+            <section class="card flow">
+                <p class="card__label">Nutrición</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.RegularMeals" /><span>Comidas a horas regulares.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.SkippedBreakfast" /><span>Salté el desayuno.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.SmallFrequentMeals" /><span>Comidas pequeñas y frecuentes.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedLargeHighCarbMeal" /><span>Evité comidas grandes / muy hidratos.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AdequateProtein" /><span>Comí suficiente proteína.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AlcoholAvoided" /><span>Sin alcohol.</span></label>
+
+                <label for="caffeine">Cafeína</label>
+                <select id="caffeine" class="text-input" @bind="form.CaffeineLevel">
+                    <option value="None">Ninguna</option>
+                    <option value="Low">Poca</option>
+                    <option value="Moderate">Moderada</option>
+                    <option value="High">Mucha</option>
+                </select>
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Compresión</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.CompressionSocks" /><span>Medias de compresión.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.WaistHighCompression" /><span>Compresión hasta cintura.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AbdominalCompression" /><span>Faja abdominal.</span></label>
+                <label for="comp-hours">Horas con compresión</label>
+                <input id="comp-hours" type="number" min="0" max="24" @bind="form.CompressionHoursWorn" />
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Ejercicio</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.RecumbentExercise" /><span>Ejercicio tumbada/reclinada.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.Walking" /><span>Andar.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.Strength" /><span>Fuerza.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.Stretching" /><span>Estiramientos.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.PtExercises" /><span>Ejercicios de fisio.</span></label>
+                <label for="ex-min">Duración total (minutos)</label>
+                <input id="ex-min" type="number" min="0" max="1440" @bind="form.ExerciseDurationMinutes" />
+                <label for="ex-int">Intensidad (palabras tuyas)</label>
+                <input id="ex-int" type="text" maxlength="50" @bind="form.ExerciseIntensity" placeholder="suave / moderada / fuerte" />
+                <label for="post-ex">¿Cómo te sentiste después?</label>
+                <input id="post-ex" type="text" maxlength="500" @bind="form.PostExerciseSymptoms" placeholder="bien, fatigada, mareo..." />
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Pacing y descanso</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.PlannedRestBreaks" /><span>Descansos planificados.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedOverexertion" /><span>Evité pasarme.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.UsedActivityPacing" /><span>Apliqué pacing.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedLongStanding" /><span>Evité estar mucho rato de pie.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.SatDuringShowerCooking" /><span>Me senté en la ducha / cocinando.</span></label>
+                <label for="mobility">Ayuda de movilidad (si la usaste)</label>
+                <input id="mobility" type="text" maxlength="100" @bind="form.MobilityAid" placeholder="bastón, silla, taburete..." />
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Calor</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedHeat" /><span>Evité el calor.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.UsedCoolingVestFan" /><span>Usé chaleco/ventilador refrescante.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.ColdShower" /><span>Ducha o paño frío.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedHotBathSauna" /><span>Evité baño caliente / sauna.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.StayedInShadeAc" /><span>Me mantuve a la sombra / aire acondicionado.</span></label>
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Sueño</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.SleptEnough" /><span>Dormí lo suficiente.</span></label>
+                <SymptomScale Label="Calidad del sueño" @bind-Value="form.SleepQuality" />
+                <label class="checkbox-row"><input type="checkbox" @bind="form.ConsistentBedtimes" /><span>Horarios consistentes.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.NapTaken" /><span>Me eché una siesta.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="wokeRefreshedYes" /><span>Me levanté descansada.</span></label>
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Medicación</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.MedicationTakenAsPrescribed" /><span>Tomé mi medicación según indicación.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.MissedDose" /><span>Me salté una dosis.</span></label>
+                <label for="side">Efectos secundarios</label>
+                <input id="side" type="text" maxlength="500" @bind="form.SideEffects" placeholder="qué notaste" />
+                <label for="newmed">Medicación / suplemento nuevo</label>
+                <input id="newmed" type="text" maxlength="200" @bind="form.NewMedicationOrSupplement" />
+                <label class="checkbox-row"><input type="checkbox" @bind="rescueMedYes" /><span>Tomé medicación de rescate (si la tienes prescrita).</span></label>
+            </section>
+
+            @if (errorMessage is not null)
+            {
+                <p class="error-text" role="alert">@errorMessage</p>
+            }
+
+            <div class="action-row">
+                <button type="submit" class="btn--primary" disabled="@busy">
+                    <span>@(busy ? "Guardando..." : "Guardar el día")</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                </button>
+                <a href="/today" class="btn--ghost" style="text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;">
+                    Cancelar
+                </a>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private static readonly string[] MonthsEs =
+        { "enero","febrero","marzo","abril","mayo","junio",
+          "julio","agosto","septiembre","octubre","noviembre","diciembre" };
+
+    private ActionsForm form = new();
+    private bool wokeRefreshedYes;
+    private bool rescueMedYes;
+    private bool saltTargetEnabled = false;
+    private bool busy;
+    private bool saved;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        try
+        {
+            var targets = await TargetsClient.GetAsync();
+            saltTargetEnabled = targets.SaltTargetEnabled;
+        }
+        catch { saltTargetEnabled = false; }
+    }
+
+    private async Task SaveAsync()
+    {
+        errorMessage = null;
+        busy = true;
+        try
+        {
+            var dto = new UpsertActionsDto
+            {
+                Day = DateOnly.FromDateTime(DateTime.Now),
+                FluidMl = form.FluidMl,
+                ElectrolyteTaken = form.ElectrolyteTaken,
+                MorningWaterBeforeStanding = form.MorningWaterBeforeStanding,
+                UrineColor = string.IsNullOrEmpty(form.UrineColor) ? null : form.UrineColor,
+                SaltTargetReached = saltTargetEnabled ? form.SaltTargetReached : null,
+                RegularMeals = form.RegularMeals,
+                SkippedBreakfast = form.SkippedBreakfast,
+                SmallFrequentMeals = form.SmallFrequentMeals,
+                AvoidedLargeHighCarbMeal = form.AvoidedLargeHighCarbMeal,
+                AdequateProtein = form.AdequateProtein,
+                AlcoholAvoided = form.AlcoholAvoided,
+                CaffeineLevel = form.CaffeineLevel,
+                CompressionSocks = form.CompressionSocks,
+                WaistHighCompression = form.WaistHighCompression,
+                AbdominalCompression = form.AbdominalCompression,
+                CompressionHoursWorn = form.CompressionHoursWorn,
+                RecumbentExercise = form.RecumbentExercise,
+                Walking = form.Walking,
+                Strength = form.Strength,
+                Stretching = form.Stretching,
+                PtExercises = form.PtExercises,
+                ExerciseDurationMinutes = form.ExerciseDurationMinutes,
+                ExerciseIntensity = string.IsNullOrWhiteSpace(form.ExerciseIntensity) ? null : form.ExerciseIntensity,
+                PostExerciseSymptoms = string.IsNullOrWhiteSpace(form.PostExerciseSymptoms) ? null : form.PostExerciseSymptoms,
+                PlannedRestBreaks = form.PlannedRestBreaks,
+                AvoidedOverexertion = form.AvoidedOverexertion,
+                UsedActivityPacing = form.UsedActivityPacing,
+                AvoidedLongStanding = form.AvoidedLongStanding,
+                SatDuringShowerCooking = form.SatDuringShowerCooking,
+                MobilityAid = string.IsNullOrWhiteSpace(form.MobilityAid) ? null : form.MobilityAid,
+                AvoidedHeat = form.AvoidedHeat,
+                UsedCoolingVestFan = form.UsedCoolingVestFan,
+                ColdShower = form.ColdShower,
+                AvoidedHotBathSauna = form.AvoidedHotBathSauna,
+                StayedInShadeAc = form.StayedInShadeAc,
+                SleptEnough = form.SleptEnough,
+                SleepQuality = form.SleepQuality,
+                ConsistentBedtimes = form.ConsistentBedtimes,
+                NapTaken = form.NapTaken,
+                WokeRefreshed = wokeRefreshedYes,
+                MedicationTakenAsPrescribed = form.MedicationTakenAsPrescribed,
+                MissedDose = form.MissedDose,
+                SideEffects = string.IsNullOrWhiteSpace(form.SideEffects) ? null : form.SideEffects,
+                NewMedicationOrSupplement = string.IsNullOrWhiteSpace(form.NewMedicationOrSupplement) ? null : form.NewMedicationOrSupplement,
+                RescueMedicationUsed = rescueMedYes,
+            };
+            await ActionClient.UpsertAsync(dto);
+            saved = true;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "No se ha podido guardar. Inténtalo de nuevo.";
+        }
+        finally { busy = false; }
+    }
+
+    private static string FormatToday()
+    {
+        var d = DateTime.Now;
+        return $"{d.Day} de {MonthsEs[d.Month - 1]}";
+    }
+
+    private sealed class ActionsForm
+    {
+        public int? FluidMl { get; set; }
+        public bool ElectrolyteTaken { get; set; }
+        public bool MorningWaterBeforeStanding { get; set; }
+        public string UrineColor { get; set; } = "";
+
+        public bool? SaltTargetReached { get; set; }
+
+        public bool RegularMeals { get; set; }
+        public bool SkippedBreakfast { get; set; }
+        public bool SmallFrequentMeals { get; set; }
+        public bool AvoidedLargeHighCarbMeal { get; set; }
+        public bool AdequateProtein { get; set; }
+        public bool AlcoholAvoided { get; set; }
+        public string CaffeineLevel { get; set; } = "None";
+
+        public bool CompressionSocks { get; set; }
+        public bool WaistHighCompression { get; set; }
+        public bool AbdominalCompression { get; set; }
+        public int? CompressionHoursWorn { get; set; }
+
+        public bool RecumbentExercise { get; set; }
+        public bool Walking { get; set; }
+        public bool Strength { get; set; }
+        public bool Stretching { get; set; }
+        public bool PtExercises { get; set; }
+        public int? ExerciseDurationMinutes { get; set; }
+        public string ExerciseIntensity { get; set; } = "";
+        public string PostExerciseSymptoms { get; set; } = "";
+
+        public bool PlannedRestBreaks { get; set; }
+        public bool AvoidedOverexertion { get; set; }
+        public bool UsedActivityPacing { get; set; }
+        public bool AvoidedLongStanding { get; set; }
+        public bool SatDuringShowerCooking { get; set; }
+        public string MobilityAid { get; set; } = "";
+
+        public bool AvoidedHeat { get; set; }
+        public bool UsedCoolingVestFan { get; set; }
+        public bool ColdShower { get; set; }
+        public bool AvoidedHotBathSauna { get; set; }
+        public bool StayedInShadeAc { get; set; }
+
+        public bool SleptEnough { get; set; }
+        public int? SleepQuality { get; set; }
+        public bool ConsistentBedtimes { get; set; }
+        public bool NapTaken { get; set; }
+
+        public bool MedicationTakenAsPrescribed { get; set; }
+        public bool MissedDose { get; set; }
+        public string SideEffects { get; set; } = "";
+        public string NewMedicationOrSupplement { get; set; } = "";
+    }
+}

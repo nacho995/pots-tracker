@@ -1,0 +1,12 @@
+@page "/"
+@inject AuthClient Auth
+@inject NavigationManager Nav
+
+<PageTitle>POTS</PageTitle>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Nav.NavigateTo(string.IsNullOrEmpty(Auth.CachedJwt) ? "/login" : "/today", replace: true);
+    }
+}

@@ -1,0 +1,67 @@
+@page "/login/verify"
+@inject AuthClient Auth
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Verificando — POTS</PageTitle>
+
+<div class="shell shell--narrow flow stagger">
+    <p class="eyebrow">Acceso · verificando</p>
+
+    @if (errorMessage is null)
+    {
+        <h1><span class="accent-rule"></span>Un<br />momento.</h1>
+        <p class="lead">Estamos comprobando tu enlace.</p>
+    }
+    else
+    {
+        <h1><span class="accent-rule"></span>Enlace<br />no válido.</h1>
+        <p class="lead">@errorMessage</p>
+        <a href="/login" class="btn--link">Pedir un enlace nuevo →</a>
+    }
+</div>
+
+@code {
+    private string? errorMessage;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        var hash = await JS.InvokeAsync<string>("eval", "window.location.hash");
+        var rawToken = ExtractToken(hash);
+
+        if (string.IsNullOrEmpty(rawToken))
+        {
+            errorMessage = "El enlace está incompleto. Pide uno nuevo desde la pantalla de inicio.";
+            StateHasChanged();
+            return;
+        }
+
+        var ok = await Auth.VerifyAsync(rawToken);
+        if (ok)
+        {
+            await JS.InvokeVoidAsync("history.replaceState", null, "", "/today");
+            Nav.NavigateTo("/today", replace: true);
+        }
+        else
+        {
+            errorMessage = "El enlace ha expirado o ya se ha usado. Pide uno nuevo.";
+            StateHasChanged();
+        }
+    }
+
+    private static string? ExtractToken(string hash)
+    {
+        if (string.IsNullOrEmpty(hash)) return null;
+        var trimmed = hash.TrimStart('#');
+        foreach (var part in trimmed.Split('&'))
+        {
+            var eq = part.IndexOf('=');
+            if (eq < 0) continue;
+            var key = part[..eq];
+            if (key == "token") return Uri.UnescapeDataString(part[(eq + 1)..]);
+        }
+        return null;
+    }
+}

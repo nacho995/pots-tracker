@@ -1,0 +1,64 @@
+@page "/shared"
+@inject AuthClient Auth
+@inject SharedClient SharedClient
+@inject NavigationManager Nav
+
+<PageTitle>Compartido contigo — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    <p class="eyebrow">Compartido contigo</p>
+    <h1><span class="accent-rule"></span>Personas<br />que te han<br />invitado.</h1>
+    <p class="lead">
+        Aquí ves los perfiles a los que tienes acceso. Solo lo que cada
+        persona ha decidido compartir contigo.
+    </p>
+
+    <hr class="divider" aria-hidden="true" />
+
+    @if (loading)
+    {
+        <p>Cargando...</p>
+    }
+    else if (shared.Count == 0)
+    {
+        <p class="muted">Nadie te ha compartido un perfil todavía.</p>
+    }
+    else
+    {
+        <ul class="shared-list">
+            @foreach (var s in shared)
+            {
+                <li class="shared-card">
+                    <p class="card__label">@(s.Role == "Editor" ? "Editor" : "Solo ver") · desde @s.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")</p>
+                    <h2>@s.PatientName</h2>
+                    <p class="muted">Propietaria: @s.OwnerEmail</p>
+                </li>
+            }
+        </ul>
+    }
+
+    <hr class="divider divider--ornament" aria-hidden="true" />
+
+    <p class="muted" style="text-align:center;">
+        <a href="/today" class="btn--link">Tu hoy</a>
+        &nbsp;·&nbsp;
+        <a href="/profile" class="btn--link">Tu perfil</a>
+    </p>
+</div>
+
+@code {
+    private List<SharedPatientDto> shared = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        try { shared = await SharedClient.ListAsync(); }
+        catch { /* keep empty */ }
+        finally { loading = false; }
+    }
+}

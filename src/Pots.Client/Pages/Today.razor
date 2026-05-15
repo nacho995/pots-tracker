@@ -1,0 +1,504 @@
+@page "/today"
+@inject AuthClient Auth
+@inject PatientClient PatientClient
+@inject StatusClient StatusClient
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@Lang.T("nav.today") — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    @if (loading)
+    {
+        <p class="eyebrow">Cargando</p>
+        <h1><span class="accent-rule"></span>Un momento.</h1>
+    }
+    else if (patient is null)
+    {
+        <p class="eyebrow">Antes de empezar</p>
+        <h1><span class="accent-rule"></span>Necesitamos<br />tu nombre.</h1>
+        <p class="lead">Configura tu perfil para empezar a registrar.</p>
+        <a href="/profile" class="btn--link">Ir a tu perfil →</a>
+    }
+    else if (justRecorded is { } recorded)
+    {
+        <p class="eyebrow">@Lang.T("today.recorded") · @FormatTime(recorded.CreatedAt)</p>
+        <h1><span class="accent-rule"></span>@ConfirmTitle(recorded.Status)</h1>
+        <p class="lead">@ConfirmHint(recorded.Status)</p>
+
+        @if (recorded.Status == "Red")
+        {
+            <a href="/episode/new" class="btn--primary" style="display:inline-flex;width:auto;">
+                <span>Abrir registro del episodio</span>
+                <span class="arrow" aria-hidden="true">→</span>
+            </a>
+        }
+        else if (recorded.Status == "Orange")
+        {
+            <a href="/log/symptoms" class="btn--link">Añadir detalle de síntomas →</a>
+        }
+
+        @if (showDetail)
+        {
+            <section class="card flow">
+                <p class="card__label">Detalle del momento</p>
+
+                <label for="d-posture">Postura</label>
+                <select id="d-posture" class="text-input" @bind="detailPosture">
+                    <option value="">— sin especificar —</option>
+                    <option value="Lying">Tumbada</option>
+                    <option value="Sitting">Sentada</option>
+                    <option value="Standing">De pie</option>
+                    <option value="Walking">Caminando</option>
+                    <option value="Shower">En la ducha</option>
+                    <option value="AfterMeal">Después de comer</option>
+                </select>
+
+                <label for="d-activity">Qué estabas haciendo</label>
+                <input id="d-activity" type="text" maxlength="100" @bind="detailActivity"
+                       placeholder="trabajando, andando, cocinando..." />
+
+                <label for="d-location">Dónde estabas</label>
+                <input id="d-location" type="text" maxlength="200" @bind="detailLocation"
+                       placeholder="casa, calle, supermercado..." />
+
+                <label for="d-note">Nota libre</label>
+                <textarea id="d-note" class="text-input" rows="3" maxlength="1000"
+                          @bind="detailNote"
+                          placeholder="lo que quieras recordar"></textarea>
+
+                @if (detailError is not null)
+                {
+                    <p class="error-text" role="alert">@detailError</p>
+                }
+
+                <div class="action-row">
+                    <button class="btn--primary" @onclick="SaveDetailAsync" disabled="@detailBusy">
+                        <span>@(detailBusy ? "Guardando..." : "Guardar detalle")</span>
+                        <span class="arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button type="button" class="btn--ghost" @onclick="CancelDetail" disabled="@detailBusy">
+                        Cancelar
+                    </button>
+                </div>
+            </section>
+        }
+        else if (HasDetail(recorded))
+        {
+            <section class="card card--sunk">
+                <p class="card__label">Detalle anotado</p>
+                @if (recorded.Posture is not null) { <p>Postura · <strong>@PostureEs(recorded.Posture)</strong></p> }
+                @if (!string.IsNullOrEmpty(recorded.Activity)) { <p>Haciendo · @recorded.Activity</p> }
+                @if (!string.IsNullOrEmpty(recorded.LocationNote)) { <p>Lugar · @recorded.LocationNote</p> }
+                @if (!string.IsNullOrEmpty(recorded.Note)) { <p>Nota · @recorded.Note</p> }
+            </section>
+        }
+        else
+        {
+            <hr class="divider" aria-hidden="true" />
+            <p class="muted">¿Quieres añadir contexto? Postura, qué estabas haciendo, una nota.</p>
+            <button class="btn--ghost" @onclick="OpenDetail">Añadir detalle</button>
+        }
+
+        <hr class="divider" aria-hidden="true" />
+
+        <p class="card__label">@Lang.T("today.switch.label")</p>
+        <div class="status-switch">
+            <button type="button"
+                    class="status-switch__pill status-switch__pill--green @(recorded.Status == "Green" ? "is-current" : "")"
+                    @onclick="@(() => SwitchStatusAsync("Green"))"
+                    disabled="@(undoBusy || recorded.Status == "Green")">
+                <span class="status-switch__dot"></span>
+                <span>@Lang.T("today.green")</span>
+            </button>
+            <button type="button"
+                    class="status-switch__pill status-switch__pill--orange @(recorded.Status == "Orange" ? "is-current" : "")"
+                    @onclick="@(() => SwitchStatusAsync("Orange"))"
+                    disabled="@(undoBusy || recorded.Status == "Orange")">
+                <span class="status-switch__dot"></span>
+                <span>@Lang.T("today.orange")</span>
+            </button>
+            <button type="button"
+                    class="status-switch__pill status-switch__pill--red @(recorded.Status == "Red" ? "is-current" : "")"
+                    @onclick="@(() => SwitchStatusAsync("Red"))"
+                    disabled="@(undoBusy || recorded.Status == "Red")">
+                <span class="status-switch__dot"></span>
+                <span>@Lang.T("today.red")</span>
+            </button>
+        </div>
+        <p class="muted">@Lang.T("today.switch.hint")</p>
+
+        @if (undoError is not null)
+        {
+            <p class="error-text" role="alert">@undoError</p>
+        }
+
+        <hr class="divider divider--ornament" aria-hidden="true" />
+
+        <button class="btn--ghost" @onclick="Reset">@Lang.T("today.again")</button>
+    }
+    else
+    {
+        <p class="eyebrow">@Lang.T("today.eyebrow") · @FormatToday()</p>
+        <h1><span class="accent-rule"></span>@Lang.T("today.howAreYou")</h1>
+
+        <div class="status-grid">
+            <button class="status-btn status-btn--green" @onclick="RecordGreen" disabled="@busy">
+                <span class="status-btn__chip" aria-hidden="true"></span>
+                <span class="status-btn__label">@Lang.T("today.green")</span>
+                <span class="status-btn__hint">@Lang.T("today.green.hint")</span>
+            </button>
+            <button class="status-btn status-btn--orange" @onclick="RecordOrange" disabled="@busy">
+                <span class="status-btn__chip" aria-hidden="true"></span>
+                <span class="status-btn__label">@Lang.T("today.orange")</span>
+                <span class="status-btn__hint">@Lang.T("today.orange.hint")</span>
+            </button>
+            <button class="status-btn status-btn--red" @onclick="RecordRed" disabled="@busy">
+                <span class="status-btn__chip" aria-hidden="true"></span>
+                <span class="status-btn__label">@Lang.T("today.red")</span>
+                <span class="status-btn__hint">@Lang.T("today.red.hint")</span>
+            </button>
+        </div>
+
+        @if (errorMessage is not null)
+        {
+            <p class="error-text" role="alert">@errorMessage</p>
+        }
+
+        @if (todayHistory.Count > 0)
+        {
+            <hr class="divider" aria-hidden="true" />
+            <p class="card__label">Tus últimas 24 h · toca para corregir</p>
+            <ul class="status-history">
+                @foreach (var h in todayHistory)
+                {
+                    <li class="status-history__item">
+                        <button type="button"
+                                class="status-history__row @(editingId == h.Id ? "is-editing" : "")"
+                                @onclick="@(() => ToggleEdit(h.Id))"
+                                aria-expanded="@(editingId == h.Id)">
+                            <span class="status-dot status-dot--@(h.Status.ToLowerInvariant())"></span>
+                            <span class="status-history__time tabular">@FormatTime(h.CreatedAt)</span>
+                            <span class="status-history__label">@StatusEs(h.Status)</span>
+                            <span class="status-history__chev" aria-hidden="true">@(editingId == h.Id ? "▾" : "›")</span>
+                        </button>
+                        @if (editingId == h.Id)
+                        {
+                            <div class="status-history__edit">
+                                <div class="status-switch">
+                                    <button type="button"
+                                            class="status-switch__pill status-switch__pill--green @(h.Status == "Green" ? "is-current" : "")"
+                                            @onclick="@(() => EditHistoryAsync(h, "Green"))"
+                                            disabled="@(historyBusy || h.Status == "Green")">
+                                        <span class="status-switch__dot"></span>
+                                        <span>@Lang.T("today.green")</span>
+                                    </button>
+                                    <button type="button"
+                                            class="status-switch__pill status-switch__pill--orange @(h.Status == "Orange" ? "is-current" : "")"
+                                            @onclick="@(() => EditHistoryAsync(h, "Orange"))"
+                                            disabled="@(historyBusy || h.Status == "Orange")">
+                                        <span class="status-switch__dot"></span>
+                                        <span>@Lang.T("today.orange")</span>
+                                    </button>
+                                    <button type="button"
+                                            class="status-switch__pill status-switch__pill--red @(h.Status == "Red" ? "is-current" : "")"
+                                            @onclick="@(() => EditHistoryAsync(h, "Red"))"
+                                            disabled="@(historyBusy || h.Status == "Red")">
+                                        <span class="status-switch__dot"></span>
+                                        <span>@Lang.T("today.red")</span>
+                                    </button>
+                                </div>
+                                <div class="action-row">
+                                    <button type="button" class="btn--quiet" @onclick="@(() => DeleteHistoryAsync(h))" disabled="@historyBusy">
+                                        @(historyBusy ? "..." : "Eliminar")
+                                    </button>
+                                    <button type="button" class="btn--quiet" @onclick="CloseEdit" disabled="@historyBusy">
+                                        Cerrar
+                                    </button>
+                                </div>
+                                @if (historyError is not null)
+                                {
+                                    <p class="error-text" role="alert">@historyError</p>
+                                }
+                            </div>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+    }
+</div>
+
+@code {
+    private static readonly string[] MonthsEs =
+    {
+        "enero", "febrero", "marzo", "abril", "mayo", "junio",
+        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+    };
+
+    private PatientDto? patient;
+    private bool loading = true;
+    private bool busy = false;
+    private string? errorMessage;
+    private DailyStatusDto? justRecorded;
+    private List<DailyStatusDto> todayHistory = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        try
+        {
+            patient = await PatientClient.GetMyPatientAsync();
+            if (patient is not null)
+            {
+                todayHistory = await StatusClient.GetTodayAsync();
+            }
+        }
+        catch (HttpRequestException) { /* keep state */ }
+        finally { loading = false; }
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+
+    private Task RecordGreen()  => SelectAsync("Green");
+    private Task RecordOrange() => SelectAsync("Orange");
+    private Task RecordRed()    => SelectAsync("Red");
+
+    private async Task SelectAsync(string status)
+    {
+        errorMessage = null;
+        busy = true;
+        try
+        {
+            var saved = await StatusClient.RecordAsync(
+                new RecordStatusDto(status, EpisodeOccurred: status == "Red"));
+            justRecorded = saved;
+            todayHistory = await StatusClient.GetTodayAsync();
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "No se ha podido guardar. Inténtalo de nuevo.";
+        }
+        finally { busy = false; }
+    }
+
+    private void Reset()
+    {
+        justRecorded = null;
+        errorMessage = null;
+        showDetail = false;
+        detailPosture = "";
+        detailActivity = "";
+        detailLocation = "";
+        detailNote = "";
+        detailError = null;
+    }
+
+    private bool showDetail = false;
+    private string detailPosture = "";
+    private string detailActivity = "";
+    private string detailLocation = "";
+    private string detailNote = "";
+    private bool detailBusy = false;
+    private string? detailError = null;
+
+    private void OpenDetail()
+    {
+        if (justRecorded is null) return;
+        detailPosture = justRecorded.Posture ?? "";
+        detailActivity = justRecorded.Activity ?? "";
+        detailLocation = justRecorded.LocationNote ?? "";
+        detailNote = justRecorded.Note ?? "";
+        detailError = null;
+        showDetail = true;
+    }
+
+    private void CancelDetail()
+    {
+        showDetail = false;
+        detailError = null;
+    }
+
+    private bool undoBusy = false;
+    private string? undoError = null;
+
+    private async Task UndoAsync()
+    {
+        if (justRecorded is null) return;
+        undoError = null;
+        undoBusy = true;
+        try
+        {
+            await StatusClient.DeleteAsync(justRecorded.Id);
+            justRecorded = null;
+            showDetail = false;
+            detailError = null;
+            todayHistory = await StatusClient.GetTodayAsync();
+        }
+        catch (HttpRequestException)
+        {
+            undoError = "No se pudo deshacer. Inténtalo de nuevo.";
+        }
+        finally { undoBusy = false; }
+    }
+
+    // Swap the current status for a different one. Implemented as DELETE+POST
+    // so the timeline reflects the corrected state without retaining the
+    // misclick in the patient's history. The deletion is audited.
+    private async Task SwitchStatusAsync(string newStatus)
+    {
+        if (justRecorded is null || justRecorded.Status == newStatus) return;
+        undoError = null;
+        undoBusy = true;
+        try
+        {
+            await StatusClient.DeleteAsync(justRecorded.Id);
+            justRecorded = await StatusClient.RecordAsync(
+                new RecordStatusDto(newStatus, EpisodeOccurred: newStatus == "Red"));
+            todayHistory = await StatusClient.GetTodayAsync();
+        }
+        catch (HttpRequestException)
+        {
+            undoError = "No se pudo cambiar. Inténtalo de nuevo.";
+        }
+        finally { undoBusy = false; }
+    }
+
+    private Guid? editingId;
+    private bool historyBusy = false;
+    private string? historyError = null;
+
+    private void ToggleEdit(Guid id)
+    {
+        historyError = null;
+        editingId = editingId == id ? null : id;
+    }
+
+    private void CloseEdit()
+    {
+        editingId = null;
+        historyError = null;
+    }
+
+    private async Task EditHistoryAsync(DailyStatusDto current, string newStatus)
+    {
+        if (current.Status == newStatus) return;
+        historyError = null;
+        historyBusy = true;
+        try
+        {
+            await StatusClient.DeleteAsync(current.Id);
+            await StatusClient.RecordAsync(
+                new RecordStatusDto(newStatus, EpisodeOccurred: newStatus == "Red"));
+            todayHistory = await StatusClient.GetTodayAsync();
+            if (justRecorded?.Id == current.Id) justRecorded = null;
+            editingId = null;
+        }
+        catch (HttpRequestException)
+        {
+            historyError = "No se pudo cambiar. Inténtalo de nuevo.";
+        }
+        finally { historyBusy = false; }
+    }
+
+    private async Task DeleteHistoryAsync(DailyStatusDto current)
+    {
+        historyError = null;
+        historyBusy = true;
+        try
+        {
+            await StatusClient.DeleteAsync(current.Id);
+            todayHistory = await StatusClient.GetTodayAsync();
+            if (justRecorded?.Id == current.Id) justRecorded = null;
+            editingId = null;
+        }
+        catch (HttpRequestException)
+        {
+            historyError = "No se pudo eliminar. Inténtalo de nuevo.";
+        }
+        finally { historyBusy = false; }
+    }
+
+    private async Task SaveDetailAsync()
+    {
+        if (justRecorded is null) return;
+        detailError = null;
+        detailBusy = true;
+        try
+        {
+            var dto = new UpdateStatusDetailDto(
+                Posture: string.IsNullOrWhiteSpace(detailPosture) ? null : detailPosture,
+                Activity: string.IsNullOrWhiteSpace(detailActivity) ? null : detailActivity,
+                LocationNote: string.IsNullOrWhiteSpace(detailLocation) ? null : detailLocation,
+                Note: string.IsNullOrWhiteSpace(detailNote) ? null : detailNote,
+                EpisodeOccurred: justRecorded.EpisodeOccurred);
+            justRecorded = await StatusClient.UpdateDetailAsync(justRecorded.Id, dto);
+            showDetail = false;
+            todayHistory = await StatusClient.GetTodayAsync();
+        }
+        catch (HttpRequestException)
+        {
+            detailError = "No se pudo guardar el detalle. Inténtalo de nuevo.";
+        }
+        finally { detailBusy = false; }
+    }
+
+    private static bool HasDetail(DailyStatusDto d) =>
+        d.Posture is not null
+        || !string.IsNullOrEmpty(d.Activity)
+        || !string.IsNullOrEmpty(d.LocationNote)
+        || !string.IsNullOrEmpty(d.Note);
+
+    private static string PostureEs(string? p) => p switch
+    {
+        "Lying" => "Tumbada",
+        "Sitting" => "Sentada",
+        "Standing" => "De pie",
+        "Walking" => "Caminando",
+        "Shower" => "En la ducha",
+        "AfterMeal" => "Después de comer",
+        _ => p ?? ""
+    };
+
+    private static string FormatToday()
+    {
+        var d = DateTime.Now;
+        return $"{d.Day} de {MonthsEs[d.Month - 1]}";
+    }
+
+    private static string FormatTime(DateTimeOffset dt) =>
+        dt.ToLocalTime().ToString("HH:mm");
+
+    private static string StatusEs(string status) => status switch
+    {
+        "Green"  => "Bien",
+        "Orange" => "Regular",
+        "Red"    => "Mal",
+        _        => status
+    };
+
+    private string ConfirmTitle(string status) => status switch
+    {
+        "Green"  => Lang.T("today.confirm.title.good"),
+        "Orange" => Lang.T("today.confirm.title.warn"),
+        "Red"    => Lang.T("today.confirm.title.bad"),
+        _        => Lang.T("today.confirm.title.good")
+    };
+
+    private string ConfirmHint(string status) => status switch
+    {
+        "Green"  => Lang.T("today.confirm.hint.good"),
+        "Orange" => Lang.T("today.confirm.hint.warn"),
+        "Red"    => Lang.T("today.confirm.hint.bad"),
+        _        => ""
+    };
+}

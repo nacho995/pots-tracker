@@ -1,0 +1,21 @@
+.shared-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.85rem;
+}
+
+.shared-card {
+    border: 1px solid var(--paper-edge);
+    border-radius: var(--radius-soft);
+    padding: 1.25rem;
+}
+
+.shared-card h2 {
+    font-family: var(--serif);
+    font-size: 1.6rem;
+    font-variation-settings: "opsz" 60, "SOFT" 50;
+    color: var(--ink);
+    margin: 0 0 0.25rem;
+}

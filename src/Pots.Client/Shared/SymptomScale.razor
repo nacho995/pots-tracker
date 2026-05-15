@@ -1,0 +1,41 @@
+@* Reusable 0-10 nullable slider for symptom intensity. Null = "not recorded";
+   never 0. Has a clear button to reset to null. *@
+
+<div class="symptom-scale">
+    <div class="symptom-scale__top">
+        <label class="symptom-scale__label">@Label</label>
+        <span class="symptom-scale__value tabular">
+            @(Value.HasValue ? Value.Value.ToString() : "—")
+        </span>
+    </div>
+    <input type="range" min="0" max="10" step="1"
+           value="@(Value ?? 0)"
+           @oninput="OnInput"
+           class="symptom-scale__slider"
+           aria-label="@Label" />
+    <div class="symptom-scale__legend">
+        <span>nada</span>
+        <button type="button" class="symptom-scale__clear" @onclick="Clear"
+                disabled="@(!Value.HasValue)">borrar</button>
+        <span>peor</span>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Label { get; set; } = "";
+    [Parameter] public int? Value { get; set; }
+    [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+
+    private async Task OnInput(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var v))
+        {
+            await ValueChanged.InvokeAsync(v);
+        }
+    }
+
+    private async Task Clear()
+    {
+        await ValueChanged.InvokeAsync(null);
+    }
+}

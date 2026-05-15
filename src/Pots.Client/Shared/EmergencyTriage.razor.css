@@ -1,0 +1,79 @@
+.triage {
+    border: 1px solid var(--bad);
+    background: var(--bad-tint);
+    border-radius: var(--r-lg);
+    padding: 1.25rem 1.4rem;
+    color: var(--text);
+    position: relative;
+}
+
+.triage__heading {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: var(--font);
+    font-weight: 700;
+    color: var(--bad);
+    font-size: 1.02rem;
+    margin: 0 0 0.75rem;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+}
+
+.triage__pulse {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bad);
+    flex: 0 0 auto;
+    box-shadow: 0 0 0 0 var(--bad);
+    animation: triagePulse 2s ease-in-out infinite;
+}
+
+@keyframes triagePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(217, 102, 102, 0.4); }
+    50%      { box-shadow: 0 0 0 8px rgba(217, 102, 102, 0); }
+}
+
+@media (prefers-color-scheme: dark) {
+    @keyframes triagePulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(232, 138, 138, 0.5); }
+        50%      { box-shadow: 0 0 0 8px rgba(232, 138, 138, 0); }
+    }
+}
+
+.triage__list {
+    margin: 0;
+    padding-left: 1.2rem;
+    color: var(--text-soft);
+    font-size: 0.94rem;
+    line-height: 1.5;
+}
+
+.triage__list li { margin-bottom: 0.25rem; }
+
+.triage__call { margin: 1rem 0 0; }
+
+.triage__call-link {
+    display: inline-block;
+    padding: 0.75rem 1.25rem;
+    border: 0;
+    border-radius: var(--r-full);
+    color: white;
+    background: var(--bad);
+    font-weight: 600;
+    text-decoration: none;
+    box-shadow: var(--shadow-sm);
+    transition: background 180ms var(--ease), box-shadow 180ms var(--ease), transform 180ms var(--ease);
+}
+
+.triage__call-link:hover,
+.triage__call-link:focus-visible {
+    background: #c25555;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .triage__pulse { animation: none; }
+}

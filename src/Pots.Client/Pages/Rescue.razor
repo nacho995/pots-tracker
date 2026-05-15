@@ -1,0 +1,144 @@
+@page "/rescue"
+@inject AuthClient Auth
+@inject TargetsClient TargetsClient
+@inject NavigationManager Nav
+
+<PageTitle>Rescate — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    <p class="eyebrow">Rescate</p>
+    <h1><span class="accent-rule"></span>Estoy contigo.<br />Probemos algo.</h1>
+    <p class="lead">
+        Acciones clínicamente aprobadas para los momentos malos.
+        Empieza por las más cercanas a ti.
+    </p>
+
+    <EmergencyTriage />
+
+    <section class="card flow">
+        <p class="card__label">Postura</p>
+        <ul class="rescue-list">
+            <li class="rescue-list__item">
+                <span class="rescue-list__num" aria-hidden="true">1</span>
+                <div>
+                    <p class="rescue-list__title">Túmbate.</p>
+                    <p class="rescue-list__hint">Donde estés. El suelo si hace falta. Sin prisa.</p>
+                </div>
+            </li>
+            <li class="rescue-list__item">
+                <span class="rescue-list__num" aria-hidden="true">2</span>
+                <div>
+                    <p class="rescue-list__title">Eleva las piernas.</p>
+                    <p class="rescue-list__hint">Sobre una silla, sobre la pared, lo que tengas más a mano.</p>
+                </div>
+            </li>
+            <li class="rescue-list__item">
+                <span class="rescue-list__num" aria-hidden="true">3</span>
+                <div>
+                    <p class="rescue-list__title">Maniobras: cruza las piernas, tensa los gemelos.</p>
+                    <p class="rescue-list__hint">Repite varias veces. Ayuda a que la sangre vuelva.</p>
+                </div>
+            </li>
+        </ul>
+    </section>
+
+    <section class="card flow">
+        <p class="card__label">Hidratación y temperatura</p>
+        <ul class="rescue-list">
+            <li class="rescue-list__item">
+                <span class="rescue-list__num" aria-hidden="true">4</span>
+                <div>
+                    <p class="rescue-list__title">Bebe agua o bebida con electrolitos.</p>
+                    <p class="rescue-list__hint">Si la tienes a mano. Pequeños sorbos seguidos.</p>
+                </div>
+            </li>
+            @if (saltTargetEnabled)
+            {
+                <li class="rescue-list__item rescue-list__item--gated">
+                    <span class="rescue-list__num" aria-hidden="true">·</span>
+                    <div>
+                        <p class="rescue-list__title">Toma tu sal/electrolito.</p>
+                        <p class="rescue-list__hint">
+                            Tu médico te lo ha prescrito. Sigue tu dosis habitual.
+                        </p>
+                    </div>
+                </li>
+            }
+            <li class="rescue-list__item">
+                <span class="rescue-list__num" aria-hidden="true">5</span>
+                <div>
+                    <p class="rescue-list__title">Enfríate.</p>
+                    <p class="rescue-list__hint">Aire fresco, paño frío en la frente o nuca, abre la ventana.</p>
+                </div>
+            </li>
+            <li class="rescue-list__item">
+                <span class="rescue-list__num" aria-hidden="true">6</span>
+                <div>
+                    <p class="rescue-list__title">Revisa tu compresión.</p>
+                    <p class="rescue-list__hint">Si tienes medias o faja puesta, comprueba que estén bien.</p>
+                </div>
+            </li>
+        </ul>
+    </section>
+
+    <section class="card flow">
+        <p class="card__label">Entorno</p>
+        <ul class="rescue-list">
+            <li class="rescue-list__item">
+                <span class="rescue-list__num" aria-hidden="true">7</span>
+                <div>
+                    <p class="rescue-list__title">Evita estar de pie.</p>
+                    <p class="rescue-list__hint">Si tienes que moverte, hazlo despacio y apóyate en algo.</p>
+                </div>
+            </li>
+            <li class="rescue-list__item">
+                <span class="rescue-list__num" aria-hidden="true">8</span>
+                <div>
+                    <p class="rescue-list__title">Llama a alguien de confianza.</p>
+                    <p class="rescue-list__hint">No tienes que pasar esto sola.</p>
+                </div>
+            </li>
+        </ul>
+    </section>
+
+    <hr class="divider divider--ornament" aria-hidden="true" />
+
+    <p class="muted" style="text-align:center;">
+        Cuando estés mejor, si quieres:
+    </p>
+    <div class="action-row">
+        <a href="/episode/new" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;">
+            <span>Registrar el episodio</span>
+            <span class="arrow" aria-hidden="true">→</span>
+        </a>
+        <a href="/today" class="btn--ghost" style="text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;">
+            Volver
+        </a>
+    </div>
+</div>
+
+@code {
+    private bool saltTargetEnabled = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        try
+        {
+            var targets = await TargetsClient.GetAsync();
+            saltTargetEnabled = targets.SaltTargetEnabled;
+        }
+        catch
+        {
+            // Default to NOT showing salt action if we can't load targets.
+            // Safer than the alternative — CLAUDE.md §2 says salt must never
+            // be the default on.
+            saltTargetEnabled = false;
+        }
+    }
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f5f7f3" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e1413" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="POTS — seguimiento personal de síntomas y episodios. No reemplaza atención clínica." />
+    <title>POTS</title>
+    <base href="/" />
+    <link rel="preload" id="webassembly" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..900;1,400..700&display=swap" rel="stylesheet" />
+
+    <link rel="stylesheet" href="css/app.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="Pots.Client.styles.css" rel="stylesheet" />
+    <link href="manifest.webmanifest" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+    <script type="importmap"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div class="boot">
+            <div class="boot__pulse" aria-hidden="true"></div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        Ha ocurrido un error.
+        <a href="." class="reload">Recargar</a>
+        <span class="dismiss">🗙</span>
+    </div>
+    <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js', { updateViaCache: 'none' });
+        }
+    </script>
+</body>
+
+</html>

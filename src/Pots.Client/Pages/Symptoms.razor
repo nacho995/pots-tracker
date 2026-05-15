@@ -1,0 +1,214 @@
+@page "/log/symptoms"
+@inject AuthClient Auth
+@inject SymptomClient SymptomClient
+@inject NavigationManager Nav
+
+<PageTitle>Síntomas — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    <p class="eyebrow">Registro · síntomas</p>
+
+    @if (saved)
+    {
+        <h1><span class="accent-rule"></span>Anotado.</h1>
+        <p class="lead">Gracias por dejar constancia. Te lo guardamos para el próximo informe.</p>
+        <div class="action-row">
+            <a href="/today" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;">
+                <span>Volver a hoy</span>
+                <span class="arrow" aria-hidden="true">→</span>
+            </a>
+            <button class="btn--ghost" @onclick="Reset">Registrar otra ronda</button>
+        </div>
+    }
+    else
+    {
+        <h1><span class="accent-rule"></span>¿Cómo estás de cada cosa?</h1>
+        <p class="lead">
+            Solo lo que te apetezca rellenar. 0 es nada, 10 es lo peor que has sentido nunca.
+            Deja en blanco lo que no aplica.
+        </p>
+
+        <EditForm Model="this" OnValidSubmit="SaveAsync" class="flow">
+
+            <section class="card flow">
+                <p class="card__label">Cardiovascular y postura</p>
+                <SymptomScale Label="Mareo / aturdimiento" @bind-Value="data.Dizziness" />
+                <SymptomScale Label="Palpitaciones" @bind-Value="data.Palpitations" />
+                <SymptomScale Label="Sensación de taquicardia" @bind-Value="data.TachycardiaSensation" />
+                <SymptomScale Label="Molestia en el pecho" @bind-Value="data.ChestDiscomfort" />
+                <SymptomScale Label="Falta de aire" @bind-Value="data.ShortnessOfBreath" />
+                <SymptomScale Label="Casi-desmayo" @bind-Value="data.NearFainting" />
+                <SymptomScale Label="Sangre acumulada en piernas (pies morados, piernas pesadas)" @bind-Value="data.BloodPooling" />
+                <label class="checkbox-row">
+                    <input type="checkbox" @bind="data.FaintingEpisode" />
+                    <span>Hubo desmayo (pérdida de consciencia).</span>
+                </label>
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Neurológico y cognitivo</p>
+                <SymptomScale Label="Niebla mental" @bind-Value="data.BrainFog" />
+                <SymptomScale Label="Dolor de cabeza" @bind-Value="data.Headache" />
+                <SymptomScale Label="Alteraciones visuales" @bind-Value="data.VisualDisturbance" />
+                <SymptomScale Label="Temblor" @bind-Value="data.Tremor" />
+                <SymptomScale Label="Debilidad" @bind-Value="data.Weakness" />
+                <SymptomScale Label="Fatiga" @bind-Value="data.Fatigue" />
+                <SymptomScale Label="Sueño / somnolencia" @bind-Value="data.Sleepiness" />
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Digestivo</p>
+                <SymptomScale Label="Náuseas" @bind-Value="data.Nausea" />
+                <SymptomScale Label="Dolor abdominal" @bind-Value="data.AbdominalPain" />
+                <SymptomScale Label="Hinchazón" @bind-Value="data.Bloating" />
+                <SymptomScale Label="Apetito (0 nada, 10 muy alto)" @bind-Value="data.AppetiteLevel" />
+
+                <label for="bowel">Tránsito intestinal</label>
+                <select id="bowel" class="text-input" @bind="data.Bowel">
+                    <option value="">— sin especificar —</option>
+                    <option value="Normal">Normal</option>
+                    <option value="Diarrhea">Diarrea</option>
+                    <option value="Constipation">Estreñimiento</option>
+                    <option value="Both">Ambos (alternancia)</option>
+                </select>
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Temperatura y autonómico</p>
+                <SymptomScale Label="Intolerancia al calor" @bind-Value="data.HeatIntolerance" />
+                <SymptomScale Label="Sudoración" @bind-Value="data.Sweating" />
+                <SymptomScale Label="Escalofríos" @bind-Value="data.Chills" />
+                <SymptomScale Label="Sofocos / rubor" @bind-Value="data.Flushing" />
+                <SymptomScale Label="Extremidades frías" @bind-Value="data.ColdExtremities" />
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Emocional y funcional</p>
+                <SymptomScale Label="Ansiedad" @bind-Value="data.Anxiety" />
+                <SymptomScale Label="Estado de ánimo (0 muy mal, 10 muy bien)" @bind-Value="data.Mood" />
+                <SymptomScale Label="Capacidad para estudiar / trabajar" @bind-Value="data.AbilityToWork" />
+                <SymptomScale Label="Capacidad para caminar / estar de pie" @bind-Value="data.AbilityToWalk" />
+                <SymptomScale Label="Tolerancia social" @bind-Value="data.SocialTolerance" />
+            </section>
+
+            @if (errorMessage is not null)
+            {
+                <p class="error-text" role="alert">@errorMessage</p>
+            }
+
+            <div class="action-row">
+                <button type="submit" class="btn--primary" disabled="@busy">
+                    <span>@(busy ? "Guardando..." : "Guardar")</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                </button>
+                <a href="/today" class="btn--ghost" style="text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;">
+                    Cancelar
+                </a>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private SymptomsForm data = new();
+    private bool busy;
+    private bool saved;
+    private string? errorMessage;
+
+    protected override void OnInitialized()
+    {
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        errorMessage = null;
+        busy = true;
+        try
+        {
+            await SymptomClient.RecordAsync(new RecordSymptomsDto
+            {
+                Dizziness = data.Dizziness,
+                Palpitations = data.Palpitations,
+                TachycardiaSensation = data.TachycardiaSensation,
+                ChestDiscomfort = data.ChestDiscomfort,
+                ShortnessOfBreath = data.ShortnessOfBreath,
+                NearFainting = data.NearFainting,
+                FaintingEpisode = data.FaintingEpisode,
+                BloodPooling = data.BloodPooling,
+                BrainFog = data.BrainFog,
+                Headache = data.Headache,
+                VisualDisturbance = data.VisualDisturbance,
+                Tremor = data.Tremor,
+                Weakness = data.Weakness,
+                Fatigue = data.Fatigue,
+                Sleepiness = data.Sleepiness,
+                Nausea = data.Nausea,
+                AbdominalPain = data.AbdominalPain,
+                Bloating = data.Bloating,
+                Bowel = string.IsNullOrEmpty(data.Bowel) ? null : data.Bowel,
+                AppetiteLevel = data.AppetiteLevel,
+                HeatIntolerance = data.HeatIntolerance,
+                Sweating = data.Sweating,
+                Chills = data.Chills,
+                Flushing = data.Flushing,
+                ColdExtremities = data.ColdExtremities,
+                Anxiety = data.Anxiety,
+                Mood = data.Mood,
+                AbilityToWork = data.AbilityToWork,
+                AbilityToWalk = data.AbilityToWalk,
+                SocialTolerance = data.SocialTolerance,
+            });
+            saved = true;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "No se ha podido guardar. Inténtalo de nuevo.";
+        }
+        finally { busy = false; }
+    }
+
+    private void Reset()
+    {
+        data = new SymptomsForm();
+        saved = false;
+        errorMessage = null;
+    }
+
+    private sealed class SymptomsForm
+    {
+        public int? Dizziness { get; set; }
+        public int? Palpitations { get; set; }
+        public int? TachycardiaSensation { get; set; }
+        public int? ChestDiscomfort { get; set; }
+        public int? ShortnessOfBreath { get; set; }
+        public int? NearFainting { get; set; }
+        public bool FaintingEpisode { get; set; }
+        public int? BloodPooling { get; set; }
+        public int? BrainFog { get; set; }
+        public int? Headache { get; set; }
+        public int? VisualDisturbance { get; set; }
+        public int? Tremor { get; set; }
+        public int? Weakness { get; set; }
+        public int? Fatigue { get; set; }
+        public int? Sleepiness { get; set; }
+        public int? Nausea { get; set; }
+        public int? AbdominalPain { get; set; }
+        public int? Bloating { get; set; }
+        public string Bowel { get; set; } = "";
+        public int? AppetiteLevel { get; set; }
+        public int? HeatIntolerance { get; set; }
+        public int? Sweating { get; set; }
+        public int? Chills { get; set; }
+        public int? Flushing { get; set; }
+        public int? ColdExtremities { get; set; }
+        public int? Anxiety { get; set; }
+        public int? Mood { get; set; }
+        public int? AbilityToWork { get; set; }
+        public int? AbilityToWalk { get; set; }
+        public int? SocialTolerance { get; set; }
+    }
+}

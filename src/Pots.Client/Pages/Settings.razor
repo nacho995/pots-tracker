@@ -1,0 +1,257 @@
+@page "/settings"
+@inject AuthClient Auth
+@inject TargetsClient TargetsClient
+@inject NavigationManager Nav
+
+<PageTitle>Ajustes — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    <p class="eyebrow">Ajustes</p>
+    <h1><span class="accent-rule"></span>Tus objetivos.</h1>
+    <p class="lead">Tú decides qué pones aquí.</p>
+
+    @if (loading)
+    {
+        <p>Cargando...</p>
+    }
+    else
+    {
+        <EditForm Model="this" OnValidSubmit="SaveAsync" class="flow">
+            <section class="card flow">
+                <p class="card__label">Hidratación</p>
+                <label for="hydration">Objetivo de líquido (ml/día)</label>
+                <input id="hydration" type="number" min="0" max="20000" @bind="form.HydrationTargetMl" />
+                <p class="muted">
+                    Por contexto: en adultos con POTS se suele recomendar 2-3 L/día,
+                    ajustado por tu médico al clima y al ejercicio.
+                </p>
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Compresión</p>
+                <label for="compression">Horas con compresión al día (objetivo)</label>
+                <input id="compression" type="number" min="0" max="24" @bind="form.CompressionGoalHoursPerDay" />
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Sueño</p>
+                <label for="sleep">Objetivo de horas de sueño</label>
+                <input id="sleep" type="number" step="0.5" min="0" max="24" @bind="form.SleepTargetHours" />
+            </section>
+
+            <section class="card flow">
+                <p class="card__label">Plan de ejercicio</p>
+                <label for="ex-plan" class="visually-hidden">Plan de ejercicio</label>
+                <textarea id="ex-plan" class="text-input" rows="4" maxlength="2000"
+                          @bind="form.ExercisePlanNote"
+                          placeholder="Lo que te ha indicado tu médico o tu fisio. Por ejemplo: bici reclinada 15 min lun/mié/vie..."></textarea>
+            </section>
+
+            @if (errorMessage is not null)
+            {
+                <p class="error-text" role="alert">@errorMessage</p>
+            }
+
+            <button type="submit" class="btn--primary" disabled="@busy">
+                <span>@(busy ? "Guardando..." : "Guardar ajustes")</span>
+                <span class="arrow" aria-hidden="true">→</span>
+            </button>
+        </EditForm>
+
+        <hr class="divider" aria-hidden="true" />
+
+        <section class="card flow @(saltEnabled ? "card--accent" : "")">
+            <p class="card__label">Sal · clínicamente sensible</p>
+
+            @if (!saltEnabled)
+            {
+                <h2>El objetivo de sal está apagado.</h2>
+                <p>
+                    Aumentar la sal puede ayudar a algunas personas con POTS,
+                    pero <strong>no a todas</strong>. Está contraindicado en
+                    hipertensión, problemas de riñón, embarazo, y algunos
+                    subtipos de POTS. Solo enciéndelo si tu médico lo ha
+                    prescrito explícitamente.
+                </p>
+
+                @if (!showSaltModal)
+                {
+                    <button type="button" class="btn--ghost" @onclick="ShowSaltModal" disabled="@busy">
+                        Activar objetivo de sal
+                    </button>
+                }
+                else
+                {
+                    <div class="salt-form">
+                        <label for="salt-mg">Objetivo (mg/día)</label>
+                        <input id="salt-mg" type="number" min="0" max="50000" @bind="saltMg" placeholder="por ejemplo 6000" />
+
+                        <label for="attestation">¿Quién te lo ha prescrito y qué cantidad?</label>
+                        <textarea id="attestation" class="text-input" rows="3" maxlength="2000"
+                                  @bind="attestation"
+                                  placeholder="Mi cardióloga, Dra. ____, en la consulta del __/__/__, me indicó X g de sal/día"></textarea>
+
+                        <p class="muted">
+                            Este texto se guarda como prueba. Si no tienes una prescripción
+                            clara, no enciendas el objetivo.
+                        </p>
+
+                        @if (saltError is not null)
+                        {
+                            <p class="error-text" role="alert">@saltError</p>
+                        }
+
+                        <div class="action-row">
+                            <button type="button" class="btn--primary" @onclick="EnableSaltAsync" disabled="@busy">
+                                Confirmar y activar
+                            </button>
+                            <button type="button" class="btn--ghost" @onclick="HideSaltModal" disabled="@busy">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <h2>Objetivo de sal activo</h2>
+                <p class="card__value">@(targets?.SaltTargetMg) mg/día</p>
+                @if (!string.IsNullOrEmpty(targets?.SaltClinicianAttestation))
+                {
+                    <p class="muted">@targets.SaltClinicianAttestation</p>
+                }
+                <button type="button" class="btn--ghost" @onclick="DisableSaltAsync" disabled="@busy">
+                    Apagar objetivo de sal
+                </button>
+            }
+        </section>
+    }
+
+    <hr class="divider divider--ornament" aria-hidden="true" />
+
+    <p class="muted" style="text-align:center;">
+        <a href="/profile" class="btn--link">Mi perfil</a>
+        &nbsp;·&nbsp;
+        <a href="/today" class="btn--link">Hoy</a>
+    </p>
+</div>
+
+@code {
+    private PatientTargetsDto? targets;
+    private SettingsForm form = new();
+    private bool loading = true;
+    private bool busy = false;
+    private string? errorMessage;
+    private bool saltEnabled = false;
+
+    private bool showSaltModal = false;
+    private int saltMg = 6000;
+    private string attestation = "";
+    private string? saltError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        try
+        {
+            targets = await TargetsClient.GetAsync();
+            form.HydrationTargetMl = targets.HydrationTargetMl;
+            form.CompressionGoalHoursPerDay = targets.CompressionGoalHoursPerDay;
+            form.SleepTargetHours = targets.SleepTargetHours;
+            form.ExercisePlanNote = targets.ExercisePlanNote ?? "";
+            form.Language = string.IsNullOrEmpty(targets.Language) ? "es" : targets.Language;
+            saltEnabled = targets.SaltTargetEnabled;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "No se pudo cargar tus ajustes.";
+        }
+        finally { loading = false; }
+    }
+
+    private async Task SaveAsync()
+    {
+        errorMessage = null;
+        busy = true;
+        try
+        {
+            targets = await TargetsClient.UpdateAsync(new UpdateTargetsDto(
+                HydrationTargetMl: form.HydrationTargetMl,
+                CompressionGoalHoursPerDay: form.CompressionGoalHoursPerDay,
+                ExercisePlanNote: string.IsNullOrWhiteSpace(form.ExercisePlanNote) ? null : form.ExercisePlanNote,
+                SleepTargetHours: form.SleepTargetHours,
+                Language: form.Language));
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "No se pudo guardar.";
+        }
+        finally { busy = false; }
+    }
+
+    private void ShowSaltModal()
+    {
+        showSaltModal = true;
+        saltError = null;
+    }
+
+    private void HideSaltModal()
+    {
+        showSaltModal = false;
+        attestation = "";
+        saltError = null;
+    }
+
+    private async Task EnableSaltAsync()
+    {
+        saltError = null;
+        if (string.IsNullOrWhiteSpace(attestation))
+        {
+            saltError = "Escribe el texto de la prescripción. No se puede activar sin atestación explícita.";
+            return;
+        }
+        busy = true;
+        try
+        {
+            targets = await TargetsClient.EnableSaltAsync(new EnableSaltTargetDto(saltMg, attestation));
+            saltEnabled = true;
+            showSaltModal = false;
+            attestation = "";
+        }
+        catch (HttpRequestException)
+        {
+            saltError = "No se pudo activar. Inténtalo de nuevo.";
+        }
+        finally { busy = false; }
+    }
+
+    private async Task DisableSaltAsync()
+    {
+        busy = true;
+        try
+        {
+            await TargetsClient.DisableSaltAsync();
+            await LoadAsync();
+        }
+        finally { busy = false; }
+    }
+
+    private sealed class SettingsForm
+    {
+        public int HydrationTargetMl { get; set; } = 2500;
+        public int? CompressionGoalHoursPerDay { get; set; }
+        public decimal? SleepTargetHours { get; set; }
+        public string ExercisePlanNote { get; set; } = "";
+        public string Language { get; set; } = "es";
+    }
+}

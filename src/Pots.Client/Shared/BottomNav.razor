@@ -1,0 +1,53 @@
+@* Sticky bottom navigation rail. Shown on every authenticated page so no
+   page is a dead-end. Four destinations:
+     Hoy        — /today (the heart)
+     Registrar  — quick chooser landing on /log (symptoms / vitals / actions)
+     Tendencias — /trends + /report
+     Yo         — /profile (hub for settings, grants, shared, sign out)
+   Active tab is marked with an ocre underline (matches the editorial accent).
+   Respects safe-area-inset-bottom on iOS.
+*@
+
+@inject NavigationManager Nav
+@implements IDisposable
+
+<nav class="bottom-nav" role="navigation" aria-label="Principal">
+    <a href="/today"
+       class="bottom-nav__item @(IsActive("/today") ? "is-active" : "")">
+        <span class="bottom-nav__label">Hoy</span>
+    </a>
+    <a href="/log"
+       class="bottom-nav__item @(IsActive("/log") || IsActive("/episode") || IsActive("/rescue") ? "is-active" : "")">
+        <span class="bottom-nav__label">Registrar</span>
+    </a>
+    <a href="/trends"
+       class="bottom-nav__item @(IsActive("/trends") || IsActive("/report") ? "is-active" : "")">
+        <span class="bottom-nav__label">Tendencias</span>
+    </a>
+    <a href="/profile"
+       class="bottom-nav__item @(IsActive("/profile") || IsActive("/settings") || IsActive("/grants") || IsActive("/shared") ? "is-active" : "")">
+        <span class="bottom-nav__label">Yo</span>
+    </a>
+</nav>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+        => StateHasChanged();
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+    }
+
+    private bool IsActive(string prefix)
+    {
+        var path = new Uri(Nav.Uri).AbsolutePath;
+        return path.Equals(prefix, StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase);
+    }
+}

@@ -1,0 +1,47 @@
+@inherits LayoutComponentBase
+@inject AuthClient Auth
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<LanguageSwitcher />
+
+<main class="@(ShowNav ? "with-bottom-nav" : "")">
+    @Body
+</main>
+
+@if (ShowNav)
+{
+    <BottomNav />
+}
+
+@code {
+    private bool ShowNav => !string.IsNullOrEmpty(Auth.CachedJwt) && !IsAuthRoute();
+
+    protected override void OnInitialized()
+    {
+        Nav.LocationChanged += OnLocationChanged;
+        Auth.AuthStateChanged += OnAuthChanged;
+        Lang.LanguageChanged += OnLangChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+        => StateHasChanged();
+
+    private void OnAuthChanged() => InvokeAsync(StateHasChanged);
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    private bool IsAuthRoute()
+    {
+        var path = new Uri(Nav.Uri).AbsolutePath;
+        return path.StartsWith("/login", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public void Dispose()
+    {
+        Nav.LocationChanged -= OnLocationChanged;
+        Auth.AuthStateChanged -= OnAuthChanged;
+        Lang.LanguageChanged -= OnLangChanged;
+    }
+}

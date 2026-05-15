@@ -1,0 +1,42 @@
+@* Always-visible top-right language switcher. Three codes (ES · FR · EN);
+   active one in ocre with an underline. Fixed position so it doesn't move
+   when scrolling. Respects safe-area-inset-right for iOS. *@
+
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="lang-switcher" role="group" aria-label="Idioma">
+    <button type="button"
+            class="lang-switcher__btn @(Lang.Current == "es" ? "is-active" : "")"
+            @onclick='@(() => SetAsync("es"))'
+            aria-label="Español"
+            aria-pressed="@(Lang.Current == "es")">ES</button>
+    <span class="lang-switcher__sep" aria-hidden="true">·</span>
+    <button type="button"
+            class="lang-switcher__btn @(Lang.Current == "fr" ? "is-active" : "")"
+            @onclick='@(() => SetAsync("fr"))'
+            aria-label="Français"
+            aria-pressed="@(Lang.Current == "fr")">FR</button>
+    <span class="lang-switcher__sep" aria-hidden="true">·</span>
+    <button type="button"
+            class="lang-switcher__btn @(Lang.Current == "en" ? "is-active" : "")"
+            @onclick='@(() => SetAsync("en"))'
+            aria-label="English"
+            aria-pressed="@(Lang.Current == "en")">EN</button>
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Lang.LanguageChanged += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task SetAsync(string lang) => await Lang.SetAsync(lang);
+
+    public void Dispose()
+    {
+        Lang.LanguageChanged -= OnLanguageChanged;
+    }
+}

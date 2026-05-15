@@ -1,0 +1,167 @@
+@page "/grants"
+@inject AuthClient Auth
+@inject GrantClient GrantClient
+@inject NavigationManager Nav
+
+<PageTitle>Permisos — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    <p class="eyebrow">Tu perfil · permisos</p>
+
+    <h1><span class="accent-rule"></span>Quién puede ver<br />o editar tus datos.</h1>
+
+    <p class="lead">
+        Por defecto, solo tú. Aquí puedes dar acceso a otra persona y
+        revocarlo cuando quieras.
+    </p>
+
+    <hr class="divider" aria-hidden="true" />
+
+    <section class="card">
+        <p class="card__label">Invitar a alguien</p>
+        <EditForm Model="this" OnValidSubmit="InviteAsync">
+            <div>
+                <label for="grantee-email">Email de la persona</label>
+                <input id="grantee-email" type="email" inputmode="email" autocomplete="email"
+                       placeholder="su@correo.com" @bind="emailInput" required disabled="@busy" />
+            </div>
+
+            <fieldset class="role-fieldset">
+                <legend>Tipo de acceso</legend>
+                <label class="role-row">
+                    <input type="radio" name="role" value="Viewer"
+                           checked="@(roleInput == "Viewer")"
+                           @onchange="@(_ => roleInput = "Viewer")" />
+                    <span>
+                        <span class="role-row__title">Solo ver</span>
+                        <span class="role-row__hint">Puede leer tus datos pero no modificarlos.</span>
+                    </span>
+                </label>
+                <label class="role-row">
+                    <input type="radio" name="role" value="Editor"
+                           checked="@(roleInput == "Editor")"
+                           @onchange="@(_ => roleInput = "Editor")" />
+                    <span>
+                        <span class="role-row__title">Editar</span>
+                        <span class="role-row__hint">Puede leer y modificar tus datos en tu nombre.</span>
+                    </span>
+                </label>
+            </fieldset>
+
+            <button type="submit" class="btn--primary" disabled="@busy">
+                <span>
+                    @(busy
+                        ? "Invitando..."
+                        : (roleInput == "Editor" ? "Invitar a editar" : "Invitar a ver"))
+                </span>
+                <span class="arrow" aria-hidden="true">→</span>
+            </button>
+        </EditForm>
+
+        @if (inviteMessage is not null)
+        {
+            <p class="@(inviteOk ? "muted" : "error-text")" role="status">@inviteMessage</p>
+        }
+    </section>
+
+    <section class="card card--sunk">
+        <p class="card__label">Personas con acceso</p>
+        @if (loading)
+        {
+            <p>Cargando...</p>
+        }
+        else if (grants.Count == 0)
+        {
+            <p class="muted">Nadie más tiene acceso a tus datos.</p>
+        }
+        else
+        {
+            <ul class="grant-list">
+                @foreach (var g in grants)
+                {
+                    <li class="grant-row">
+                        <div>
+                            <p class="grant-row__email">@g.GranteeEmail</p>
+                            <p class="grant-row__meta">
+                                <span class="grant-row__role-tag">
+                                    @(g.Role == "Editor" ? "Editor" : "Solo ver")
+                                </span>
+                                Desde @g.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")
+                            </p>
+                        </div>
+                        <button class="btn--quiet" @onclick="@(() => RevokeAsync(g.Id))" disabled="@busy">
+                            Revocar
+                        </button>
+                    </li>
+                }
+            </ul>
+        }
+    </section>
+
+    <hr class="divider divider--ornament" aria-hidden="true" />
+
+    <a href="/profile" class="btn--link">← Volver a tu perfil</a>
+</div>
+
+@code {
+    private string emailInput = "";
+    private string roleInput = "Viewer";
+    private List<GrantDto> grants = new();
+    private bool loading = true;
+    private bool busy = false;
+    private string? inviteMessage;
+    private bool inviteOk = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        try { grants = await GrantClient.ListAsync(); }
+        catch { /* keep current list */ }
+        finally { loading = false; }
+    }
+
+    private async Task InviteAsync()
+    {
+        inviteMessage = null; busy = true;
+        try
+        {
+            var (ok, code) = await GrantClient.InviteAsync(emailInput, roleInput);
+            if (ok)
+            {
+                inviteOk = true;
+                inviteMessage = $"Listo. Le hemos enviado un enlace a {emailInput} para que entre.";
+                emailInput = "";
+                await LoadAsync();
+            }
+            else
+            {
+                inviteOk = false;
+                inviteMessage = code switch
+                {
+                    "grant.already_active" => "Esa persona ya tiene acceso activo.",
+                    "grant.invalid_email" => "El email no es válido.",
+                    "grant.self_grant_not_allowed" => "No puedes invitarte a ti misma.",
+                    _ => "No se ha podido invitar. Inténtalo de nuevo."
+                };
+            }
+        }
+        finally { busy = false; }
+    }
+
+    private async Task RevokeAsync(Guid grantId)
+    {
+        busy = true;
+        try { await GrantClient.RevokeAsync(grantId); await LoadAsync(); }
+        finally { busy = false; }
+    }
+}

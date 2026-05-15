@@ -1,0 +1,7 @@
+/* Layout chrome stripped — every page is a full-screen editorial spread.
+   All visual rules live in wwwroot/css/app.css. */
+
+/* Reserve space at the bottom so content doesn't sit under the BottomNav. */
+main.with-bottom-nav {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+}

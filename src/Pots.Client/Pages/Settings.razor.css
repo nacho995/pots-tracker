@@ -1,0 +1,9 @@
+.card--accent {
+    border-color: var(--accent);
+}
+
+.salt-form {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
