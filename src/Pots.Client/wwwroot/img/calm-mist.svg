@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1024" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f6f9f3"/>
+      <stop offset="55%" stop-color="#eef3ea"/>
+      <stop offset="100%" stop-color="#e3ecdf"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="85"/>
+    </filter>
+    <filter id="paper" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix values="0 0 0 0 0.18  0 0 0 0 0.22  0 0 0 0 0.20  0 0 0 0.05 0"/>
+    </filter>
+  </defs>
+
+  <rect width="100%" height="100%" fill="url(#base)"/>
+
+  <g filter="url(#soft)">
+    <ellipse cx="180"  cy="220"  rx="430" ry="230" fill="#9ec2a6" opacity="0.46"/>
+    <ellipse cx="1320" cy="180"  rx="400" ry="210" fill="#cdd8b0" opacity="0.40"/>
+    <ellipse cx="1180" cy="820"  rx="540" ry="290" fill="#6ea58a" opacity="0.38"/>
+    <ellipse cx="320"  cy="900"  rx="470" ry="250" fill="#d4cbab" opacity="0.32"/>
+    <ellipse cx="720"  cy="540"  rx="400" ry="230" fill="#b8d2bc" opacity="0.28"/>
+    <ellipse cx="980"  cy="320"  rx="260" ry="160" fill="#e6dcb8" opacity="0.22"/>
+  </g>
+
+  <g stroke="#3a5848" stroke-width="0.5" fill="none" opacity="0.09">
+    <path d="M 0,540 Q 360,520 720,535 T 1440,528"/>
+    <path d="M 0,580 Q 360,562 720,578 T 1440,570"/>
+    <path d="M 0,620 Q 360,604 720,618 T 1440,610"/>
+    <path d="M 0,660 Q 360,646 720,658 T 1440,650"/>
+  </g>
+
+  <rect width="100%" height="100%" filter="url(#paper)"/>
+</svg>
