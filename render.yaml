@@ -23,7 +23,7 @@ services:
       - key: ASPNETCORE_URLS
         value: http://+:8080
       - key: Email__Provider
-        value: Resend
+        value: Brevo
       - key: Jwt__Issuer
         value: pots-tracker
       - key: Jwt__Audience
@@ -41,8 +41,10 @@ services:
       # Neon pooled connection string for the pots_app role (RLS-bound).
       - key: ConnectionStrings__Pots
         sync: false
-      # Resend HTTP API key + verified-domain sender.
-      - key: Resend__ApiKey
+      # Brevo HTTP API key + verified single-sender address (free tier 300/day).
+      - key: Brevo__ApiKey
         sync: false
-      - key: Resend__FromAddress
+      - key: Brevo__SenderEmail
         sync: false
+      - key: Brevo__SenderName
+        value: POTS

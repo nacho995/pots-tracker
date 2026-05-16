@@ -51,17 +51,23 @@ builder.Services.AddScoped<IUserContext, HttpContextUserContext>();
 builder.Services.AddScoped<AuthService>();
 
 // Email provider selection. Development defaults to Console (logs links).
-// Production must set Email__Provider=Resend + Resend__ApiKey + Resend__FromAddress.
+// Production must set Email__Provider to one of: Brevo, Resend, Console.
 var emailProvider = builder.Configuration["Email:Provider"]
     ?? (builder.Environment.IsDevelopment() ? "Console" : null)
     ?? throw new InvalidOperationException(
-        "Email:Provider is required outside Development. Set it to 'Resend' (and provide " +
-        "Resend:ApiKey + Resend:FromAddress) or 'Console' to fall back to log-only sending.");
+        "Email:Provider is required outside Development. Set it to 'Brevo' (+ Brevo:ApiKey " +
+        "+ Brevo:SenderEmail), 'Resend' (+ Resend:ApiKey + Resend:FromAddress), or 'Console'.");
 
 switch (emailProvider.ToLowerInvariant())
 {
     case "console":
         builder.Services.AddSingleton<IEmailSender, ConsoleEmailSender>();
+        break;
+    case "brevo":
+        var brevo = builder.Configuration.GetSection("Brevo").Get<BrevoOptions>()
+            ?? throw new InvalidOperationException("Brevo section missing.");
+        builder.Services.AddSingleton(brevo);
+        builder.Services.AddHttpClient<IEmailSender, BrevoEmailSender>();
         break;
     case "resend":
         var resend = builder.Configuration.GetSection("Resend").Get<ResendOptions>()
