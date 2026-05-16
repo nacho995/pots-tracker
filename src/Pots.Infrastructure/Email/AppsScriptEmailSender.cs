@@ -45,17 +45,13 @@ public sealed class AppsScriptEmailSender : IEmailSender
 
     public async Task SendAsync(string to, string subject, string body, CancellationToken cancellationToken = default)
     {
-        var payload = new { to, subject, body };
+        // Apps Script Web App doPost(e) does NOT expose request headers, only
+        // the body (e.postData.contents) and query string (e.parameter). The
+        // shared secret therefore travels inside the JSON payload; the script
+        // validates body.secret on every request.
+        var payload = new { to, subject, body, secret = _options.Secret };
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, _options.Url)
-        {
-            Content = JsonContent.Create(payload)
-        };
-        // Header carries the shared secret; the Apps Script doPost handler
-        // rejects any request whose header doesn't match.
-        req.Headers.Add("X-Auth-Secret", _options.Secret);
-
-        using var resp = await _http.SendAsync(req, cancellationToken);
+        using var resp = await _http.PostAsJsonAsync(_options.Url, payload, cancellationToken);
         if (!resp.IsSuccessStatusCode)
         {
             var detail = await resp.Content.ReadAsStringAsync(cancellationToken);
