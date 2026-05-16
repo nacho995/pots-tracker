@@ -55,8 +55,9 @@ builder.Services.AddScoped<AuthService>();
 var emailProvider = builder.Configuration["Email:Provider"]
     ?? (builder.Environment.IsDevelopment() ? "Console" : null)
     ?? throw new InvalidOperationException(
-        "Email:Provider is required outside Development. Valid values: 'Smtp' (+ Smtp:Host/Port/Username/Password/FromEmail), " +
-        "'Brevo' (+ Brevo:ApiKey + Brevo:SenderEmail), 'Resend' (+ Resend:ApiKey + Resend:FromAddress), or 'Console'.");
+        "Email:Provider is required outside Development. Valid values: 'SendGrid' (+ SendGrid:ApiKey + SendGrid:SenderEmail), " +
+        "'Smtp' (+ Smtp:Host/Port/Username/Password/FromEmail), 'Brevo' (+ Brevo:ApiKey + Brevo:SenderEmail), " +
+        "'Resend' (+ Resend:ApiKey + Resend:FromAddress), or 'Console'.");
 
 switch (emailProvider.ToLowerInvariant())
 {
@@ -74,6 +75,12 @@ switch (emailProvider.ToLowerInvariant())
             ?? throw new InvalidOperationException("Smtp section missing.");
         builder.Services.AddSingleton(smtp);
         builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        break;
+    case "sendgrid":
+        var sg = builder.Configuration.GetSection("SendGrid").Get<SendGridOptions>()
+            ?? throw new InvalidOperationException("SendGrid section missing.");
+        builder.Services.AddSingleton(sg);
+        builder.Services.AddHttpClient<IEmailSender, SendGridEmailSender>();
         break;
     case "resend":
         var resend = builder.Configuration.GetSection("Resend").Get<ResendOptions>()
