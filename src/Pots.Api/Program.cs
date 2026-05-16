@@ -86,7 +86,12 @@ switch (emailProvider.ToLowerInvariant())
         var apps = builder.Configuration.GetSection("AppsScript").Get<AppsScriptOptions>()
             ?? throw new InvalidOperationException("AppsScript section missing.");
         builder.Services.AddSingleton(apps);
-        builder.Services.AddHttpClient<IEmailSender, AppsScriptEmailSender>();
+        // Disable auto-redirect: Apps Script /exec responds with a 302 to a
+        // GET-only user-content URL after the script has already run (and the
+        // email has already been sent). Following the redirect gives a
+        // misleading 405; landing on the 302 lets us treat it as success.
+        builder.Services.AddHttpClient<IEmailSender, AppsScriptEmailSender>()
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
         break;
     case "mailjet":
         var mj = builder.Configuration.GetSection("Mailjet").Get<MailjetOptions>()

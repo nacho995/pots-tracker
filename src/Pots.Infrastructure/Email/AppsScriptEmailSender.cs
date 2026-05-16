@@ -52,14 +52,26 @@ public sealed class AppsScriptEmailSender : IEmailSender
         var payload = new { to, subject, body, secret = _options.Secret };
 
         using var resp = await _http.PostAsJsonAsync(_options.Url, payload, cancellationToken);
-        if (!resp.IsSuccessStatusCode)
+
+        // Apps Script's response shape: POST to /macros/s/.../exec RUNS the
+        // script synchronously (side-effect — MailApp.sendEmail — happens here)
+        // and then 302-redirects to script.googleusercontent.com/macros/echo
+        // for response display. That user-content endpoint is GET-only, so any
+        // client that follows the redirect ends up with a misleading 405. The
+        // HttpClient registered for this sender has AllowAutoRedirect=false so
+        // we land on the 302 and treat it as success: the email already went
+        // out the moment the script ran. 2xx is also accepted in case Google
+        // changes the behaviour. 4xx/5xx mean the script genuinely rejected us
+        // (bad secret, missing fields, deployment misconfigured).
+        var code = (int)resp.StatusCode;
+        if (code >= 400)
         {
             var detail = await resp.Content.ReadAsStringAsync(cancellationToken);
-            // Do NOT log the body — magic-link token would leak.
+            // Do NOT log the body of the request — magic-link token would leak.
             _logger.LogError(
                 "Apps Script send failed: {Status} to {To} subject {Subject}. Detail: {Detail}",
-                (int)resp.StatusCode, to, subject, detail);
-            throw new HttpRequestException($"Apps Script send failed: {(int)resp.StatusCode}");
+                code, to, subject, detail);
+            throw new HttpRequestException($"Apps Script send failed: {code}");
         }
     }
 }
