@@ -1,46 +1,42 @@
 @page "/login"
 @inject AuthClient Auth
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Acceso — POTS</PageTitle>
+<PageTitle>POTS</PageTitle>
 
 <div class="shell shell--narrow flow stagger">
-    <p class="eyebrow">Acceso · sin contraseña</p>
+    <p class="eyebrow">@Lang.T("login.eyebrow")</p>
 
     @if (state == State.LinkSent)
     {
-        <h1><span class="accent-rule"></span>Revisa<br />tu correo.</h1>
+        <h1><span class="accent-rule"></span>@Lang.T("login.sent.title")</h1>
 
-        <p class="lead">
-            Si el email es válido, recibirás un enlace en breve.
-            Tienes <strong>15 minutos</strong> para usarlo y solo funciona una vez.
-        </p>
+        <p class="lead">@Lang.T("login.sent.lead")</p>
 
         <hr class="divider divider--ornament" aria-hidden="true" />
 
         <p class="muted">
-            ¿No te llega? Mira la carpeta de spam, o
-            <button type="button" class="btn--link" @onclick="Reset">prueba con otro email</button>.
+            @Lang.T("login.sent.checkSpam")
+            <button type="button" class="btn--link" @onclick="Reset">@Lang.T("login.sent.again")</button>.
         </p>
     }
     else
     {
-        <h1><span class="accent-rule"></span>Buenos<br />días.</h1>
+        <h1><span class="accent-rule"></span>@Lang.T("login.title")</h1>
 
-        <p class="lead">
-            Introduce tu correo y te enviamos un enlace para entrar.
-            Nada de contraseñas que recordar.
-        </p>
+        <p class="lead">@Lang.T("login.lead")</p>
 
         <EditForm Model="this" OnValidSubmit="HandleSubmitAsync">
             <div>
-                <label for="email-input">Tu correo</label>
+                <label for="email-input">@Lang.T("login.email")</label>
                 <input id="email-input" type="email" inputmode="email" autocomplete="email"
                        placeholder="tu@correo.com" @bind="email" required disabled="@busy" />
             </div>
 
             <button type="submit" class="btn--primary" disabled="@busy">
-                <span>@(busy ? "Enviando..." : "Enviar enlace")</span>
+                <span>@(busy ? Lang.T("login.sending") : Lang.T("login.send"))</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </button>
         </EditForm>
@@ -61,11 +57,16 @@
 
     protected override void OnInitialized()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (!string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/profile", replace: true);
         }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task HandleSubmitAsync()
     {
@@ -78,7 +79,7 @@
         }
         catch
         {
-            errorMessage = "No se ha podido enviar el enlace. Inténtalo de nuevo en unos minutos.";
+            errorMessage = Lang.T("login.error");
         }
         finally
         {

@@ -6,6 +6,15 @@ self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
 self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 
+// Force the newly installed worker to take over immediately instead of waiting
+// for all client tabs/PWA windows to close. Combined with clients.claim() in
+// onActivate, this means a Vercel deploy reaches the user on their NEXT
+// navigation, not after they fully quit the installed PWA — which for a
+// daily-use health tracker the user might never do.
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
+});
+
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
 const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/, /\.webmanifest$/ ];
@@ -25,6 +34,9 @@ async function onInstall(event) {
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
         .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
     await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
+
+    // Activate this version immediately rather than waiting for tabs to close.
+    await self.skipWaiting();
 }
 
 async function onActivate(event) {
@@ -35,6 +47,10 @@ async function onActivate(event) {
     await Promise.all(cacheKeys
         .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName)
         .map(key => caches.delete(key)));
+
+    // Take control of any currently-open clients (the PWA window, browser tabs)
+    // so they get the new bundle on next navigation without a manual reload.
+    await self.clients.claim();
 }
 
 async function onFetch(event) {

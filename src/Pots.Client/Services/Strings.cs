@@ -99,6 +99,27 @@ public static class Strings
             ["cancel"] = "Cancelar",
             ["back"] = "Volver",
             ["back.to.today"] = "Volver a hoy",
+
+            // Profile (extra)
+            ["profile.welcome.eyebrow"] = "Empezamos",
+            ["profile.welcome.title"] = "Bienvenida.",
+            ["profile.welcome.lead"] = "Dinos cómo te llamas. Solo tú podrás editarlo, salvo que des permiso a otra persona.",
+            ["profile.error.load"] = "No se pudo cargar tu perfil.",
+            ["profile.error.save"] = "No se pudo guardar. Inténtalo de nuevo.",
+
+            // Login (extra)
+            ["login.error"] = "No se ha podido enviar el enlace. Inténtalo de nuevo en unos minutos.",
+
+            // Emergency triage (144 = ambulancia, Suiza)
+            ["triage.aria"] = "Triaje de emergencia",
+            ["triage.heading"] = "Si alguno de estos síntomas: llama al 144 (ambulancia Ginebra)",
+            ["triage.symptom.chest"] = "Dolor fuerte en el pecho.",
+            ["triage.symptom.breath"] = "Dificultad grave para respirar.",
+            ["triage.symptom.unconscious"] = "Pérdida prolongada del conocimiento.",
+            ["triage.symptom.injury"] = "Lesión por la caída.",
+            ["triage.symptom.neuro"] = "Síntomas neurológicos nuevos (debilidad asimétrica, habla confusa, visión doble).",
+            ["triage.symptom.unusual"] = "Cualquier síntoma que se sienta inusual o severo.",
+            ["triage.call"] = "Llamar al 144 ahora →",
         },
         ["fr"] = new()
         {
@@ -179,6 +200,27 @@ public static class Strings
             ["cancel"] = "Annuler",
             ["back"] = "Retour",
             ["back.to.today"] = "Retour à aujourd'hui",
+
+            // Profile (extra)
+            ["profile.welcome.eyebrow"] = "On commence",
+            ["profile.welcome.title"] = "Bienvenue.",
+            ["profile.welcome.lead"] = "Dis-nous ton prénom. Tu seras la seule à pouvoir le modifier, sauf si tu donnes accès à quelqu'un.",
+            ["profile.error.load"] = "Impossible de charger ton profil.",
+            ["profile.error.save"] = "Impossible d'enregistrer. Réessaie.",
+
+            // Login (extra)
+            ["login.error"] = "Impossible d'envoyer le lien. Réessaie dans quelques minutes.",
+
+            // Emergency triage (144 = ambulance, Suisse)
+            ["triage.aria"] = "Triage d'urgence",
+            ["triage.heading"] = "Si l'un de ces symptômes : appelle le 144 (ambulance Genève)",
+            ["triage.symptom.chest"] = "Forte douleur dans la poitrine.",
+            ["triage.symptom.breath"] = "Difficulté grave à respirer.",
+            ["triage.symptom.unconscious"] = "Perte de conscience prolongée.",
+            ["triage.symptom.injury"] = "Blessure lors d'une chute.",
+            ["triage.symptom.neuro"] = "Symptômes neurologiques nouveaux (faiblesse asymétrique, parole confuse, vision double).",
+            ["triage.symptom.unusual"] = "Tout symptôme qui te paraît inhabituel ou sévère.",
+            ["triage.call"] = "Appeler le 144 maintenant →",
         },
         ["en"] = new()
         {
@@ -259,6 +301,27 @@ public static class Strings
             ["cancel"] = "Cancel",
             ["back"] = "Back",
             ["back.to.today"] = "Back to today",
+
+            // Profile (extra)
+            ["profile.welcome.eyebrow"] = "Let's start",
+            ["profile.welcome.title"] = "Welcome.",
+            ["profile.welcome.lead"] = "Tell us your name. Only you can edit it unless you grant access to someone else.",
+            ["profile.error.load"] = "Couldn't load your profile.",
+            ["profile.error.save"] = "Couldn't save. Try again.",
+
+            // Login (extra)
+            ["login.error"] = "Couldn't send the link. Try again in a few minutes.",
+
+            // Emergency triage (144 = ambulance, Switzerland)
+            ["triage.aria"] = "Emergency triage",
+            ["triage.heading"] = "If you have any of these symptoms: call 144 (Geneva ambulance)",
+            ["triage.symptom.chest"] = "Severe chest pain.",
+            ["triage.symptom.breath"] = "Severe difficulty breathing.",
+            ["triage.symptom.unconscious"] = "Prolonged loss of consciousness.",
+            ["triage.symptom.injury"] = "Injury from a fall.",
+            ["triage.symptom.neuro"] = "New neurological symptoms (asymmetric weakness, slurred speech, double vision).",
+            ["triage.symptom.unusual"] = "Any symptom that feels unusual or severe.",
+            ["triage.call"] = "Call 144 now →",
         },
     };
 }

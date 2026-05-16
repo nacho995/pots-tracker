@@ -2,33 +2,32 @@
 @inject AuthClient Auth
 @inject PatientClient PatientClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Tu perfil — POTS</PageTitle>
+<PageTitle>POTS</PageTitle>
 
 <div class="shell flow stagger">
     @if (loading)
     {
-        <p class="eyebrow">Cargando</p>
-        <h1><span class="accent-rule"></span>Un momento.</h1>
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("moment")</h1>
     }
     else if (patient is null)
     {
-        <p class="eyebrow">Empezamos</p>
-        <h1><span class="accent-rule"></span>Bienvenida.</h1>
-        <p class="lead">
-            Dinos cómo te llamas. Solo tú podrás editarlo, salvo que des
-            permiso a otra persona.
-        </p>
+        <p class="eyebrow">@Lang.T("profile.welcome.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("profile.welcome.title")</h1>
+        <p class="lead">@Lang.T("profile.welcome.lead")</p>
 
         <EditForm Model="this" OnValidSubmit="CreateAsync">
             <div>
-                <label for="name-input">Tu nombre</label>
+                <label for="name-input">@Lang.T("profile.yourName")</label>
                 <input id="name-input" type="text" @bind="nameInput" required maxlength="100"
-                       placeholder="Tu nombre" disabled="@busy" autofocus />
+                       placeholder="@Lang.T("profile.yourName")" disabled="@busy" autofocus />
             </div>
 
             <button type="submit" class="btn--primary" disabled="@busy">
-                <span>@(busy ? "Guardando..." : "Guardar")</span>
+                <span>@(busy ? Lang.T("saving") : Lang.T("save"))</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </button>
         </EditForm>
@@ -40,39 +39,39 @@
     }
     else
     {
-        <p class="eyebrow">Tu perfil · @FormatToday()</p>
+        <p class="eyebrow">@Lang.T("profile.eyebrow") · @FormatToday()</p>
 
-        <h1><span class="accent-rule"></span>@GreetingFor() <em>@patient.Name</em>.</h1>
+        <h1><span class="accent-rule"></span>@GreetingFor(), <em>@patient.Name</em>.</h1>
 
-        <p class="muted">Sesión iniciada como @(Auth.GetEmailFromJwt() ?? "")</p>
+        <p class="muted">@Lang.T("profile.session") @(Auth.GetEmailFromJwt() ?? "")</p>
 
         <hr class="divider" aria-hidden="true" />
 
         <section class="card">
             @if (!editing)
             {
-                <p class="card__label">Tu nombre</p>
+                <p class="card__label">@Lang.T("profile.yourName")</p>
                 <div class="card__row">
                     <p class="card__value">@patient.Name</p>
-                    <button class="btn--link" @onclick="StartEdit">Editar →</button>
+                    <button class="btn--link" @onclick="StartEdit">@Lang.T("profile.edit") →</button>
                 </div>
             }
             else
             {
-                <p class="card__label">Editar nombre</p>
+                <p class="card__label">@Lang.T("profile.edit")</p>
                 <EditForm Model="this" OnValidSubmit="SaveAsync">
                     <div>
-                        <label for="name-edit" class="visually-hidden">Nombre</label>
+                        <label for="name-edit" class="visually-hidden">@Lang.T("profile.yourName")</label>
                         <input id="name-edit" type="text" @bind="nameInput" required maxlength="100"
                                disabled="@busy" autofocus />
                     </div>
                     <div class="action-row">
                         <button type="submit" class="btn--primary" disabled="@busy">
-                            <span>@(busy ? "Guardando..." : "Guardar")</span>
+                            <span>@(busy ? Lang.T("saving") : Lang.T("save"))</span>
                             <span class="arrow" aria-hidden="true">→</span>
                         </button>
                         <button type="button" class="btn--ghost" @onclick="CancelEdit" disabled="@busy">
-                            Cancelar
+                            @Lang.T("cancel")
                         </button>
                     </div>
                 </EditForm>
@@ -84,23 +83,19 @@
         </section>
 
         <section class="card card--sunk">
-            <p class="card__label">Permisos</p>
-            <h2>Quién puede ver o editar tus datos</h2>
-            <p>Por defecto, solo tú. Aquí puedes dar acceso a otra persona y revocarlo cuando quieras.</p>
-            <a href="/grants" class="btn--link">Gestionar permisos →</a>
+            <p class="card__label">@Lang.T("profile.permissions")</p>
+            <h2>@Lang.T("profile.permissions.title")</h2>
+            <p>@Lang.T("profile.permissions.lead")</p>
+            <a href="/grants" class="btn--link">@Lang.T("profile.permissions.manage")</a>
         </section>
 
         <hr class="divider divider--ornament" aria-hidden="true" />
 
-        <button class="btn--quiet" @onclick="SignOutAsync">Cerrar sesión</button>
+        <button class="btn--quiet" @onclick="SignOutAsync">@Lang.T("profile.signout")</button>
     }
 </div>
 
 @code {
-    private static readonly string[] MonthsEs =
-        { "enero", "febrero", "marzo", "abril", "mayo", "junio",
-          "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre" };
-
     private PatientDto? patient;
     private bool loading = true;
     private bool editing = false;
@@ -110,6 +105,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
@@ -123,13 +119,17 @@
         }
         catch (HttpRequestException)
         {
-            errorMessage = "No se pudo cargar tu perfil.";
+            errorMessage = Lang.T("profile.error.load");
         }
         finally
         {
             loading = false;
         }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private void StartEdit() { editing = true; nameInput = patient!.Name; errorMessage = null; }
     private void CancelEdit() { editing = false; nameInput = patient!.Name; }
@@ -138,7 +138,7 @@
     {
         errorMessage = null; busy = true;
         try { patient = await PatientClient.CreateMyPatientAsync(nameInput); }
-        catch (HttpRequestException) { errorMessage = "No se pudo guardar. Inténtalo de nuevo."; }
+        catch (HttpRequestException) { errorMessage = Lang.T("profile.error.save"); }
         finally { busy = false; }
     }
 
@@ -146,7 +146,7 @@
     {
         errorMessage = null; busy = true;
         try { patient = await PatientClient.RenameMyPatientAsync(nameInput); editing = false; }
-        catch (HttpRequestException) { errorMessage = "No se pudo guardar. Inténtalo de nuevo."; }
+        catch (HttpRequestException) { errorMessage = Lang.T("profile.error.save"); }
         finally { busy = false; }
     }
 
@@ -156,18 +156,23 @@
         Nav.NavigateTo("/login", replace: true);
     }
 
-    private static string FormatToday()
+    private string FormatToday()
     {
         var d = DateTime.Now;
-        return $"{d.Day} de {MonthsEs[d.Month - 1]}";
+        var months = Lang.Current switch
+        {
+            "fr" => new[] { "janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre" },
+            "en" => new[] { "January","February","March","April","May","June","July","August","September","October","November","December" },
+            _    => new[] { "enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre" },
+        };
+        var sep = Lang.Current == "en" ? " " : " de ";
+        return Lang.Current == "en" ? $"{months[d.Month - 1]} {d.Day}" : $"{d.Day}{sep}{months[d.Month - 1]}";
     }
 
-    private static string GreetingFor()
+    private string GreetingFor()
     {
         var h = DateTime.Now.Hour;
-        if (h < 6)  return "Buenas noches,";
-        if (h < 13) return "Buenos días,";
-        if (h < 21) return "Buenas tardes,";
-        return "Buenas noches,";
+        var slot = h < 6 ? "evening" : h < 13 ? "morning" : h < 21 ? "afternoon" : "evening";
+        return Lang.T($"greet.{slot}");
     }
 }

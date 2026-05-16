@@ -1,21 +1,31 @@
 @* Safety-critical UI per CLAUDE.md §3. Surfaced on Episode flow and Rescue
    menu. Lists red-flag symptoms that route to emergency services rather than
-   in-app actions. Visible regardless of motion-reduction preferences. *@
+   in-app actions. Visible regardless of motion-reduction preferences.
+   144 is Switzerland's medical-emergency number (ambulance, REGA dispatch). *@
 
-<aside class="triage" role="region" aria-label="Triaje de emergencia">
+@inject LanguageService Lang
+@implements IDisposable
+
+<aside class="triage" role="region" aria-label="@Lang.T("triage.aria")">
     <p class="triage__heading">
         <span class="triage__pulse" aria-hidden="true"></span>
-        Si alguno de estos síntomas: llama al 144 (ambulancia Ginebra)
+        @Lang.T("triage.heading")
     </p>
     <ul class="triage__list">
-        <li>Dolor fuerte en el pecho.</li>
-        <li>Dificultad grave para respirar.</li>
-        <li>Pérdida prolongada del conocimiento.</li>
-        <li>Lesión por la caída.</li>
-        <li>Síntomas neurológicos nuevos (debilidad asimétrica, habla confusa, visión doble).</li>
-        <li>Cualquier síntoma que se sienta inusual o severo.</li>
+        <li>@Lang.T("triage.symptom.chest")</li>
+        <li>@Lang.T("triage.symptom.breath")</li>
+        <li>@Lang.T("triage.symptom.unconscious")</li>
+        <li>@Lang.T("triage.symptom.injury")</li>
+        <li>@Lang.T("triage.symptom.neuro")</li>
+        <li>@Lang.T("triage.symptom.unusual")</li>
     </ul>
     <p class="triage__call">
-        <a href="tel:144" class="triage__call-link">Llamar al 144 ahora →</a>
+        <a href="tel:144" class="triage__call-link">@Lang.T("triage.call")</a>
     </p>
 </aside>
+
+@code {
+    protected override void OnInitialized() => Lang.LanguageChanged += OnLangChanged;
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+}

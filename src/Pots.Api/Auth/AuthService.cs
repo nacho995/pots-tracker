@@ -12,10 +12,12 @@ namespace Pots.Api.Auth;
 // Magic-link auth.
 //
 // Deliberate trade-offs documented for review:
-//   - HS256 JWT, 24h access token, no refresh token (v1). The lifetime is
-//     deliberately long to reduce re-auth friction for symptomatic users
-//     (CLAUDE.md "spoon-aware UX"). Refresh+revocation comes in v2 when the
-//     session-management UX exists.
+//   - HS256 JWT, 1-year access token by default, no refresh token (v1).
+//     A POTS patient in mid-crisis cannot be expected to find an email
+//     client and click a magic link — re-auth has to be a near-yearly
+//     event, not a weekly one. Token revocation will come in v2 with the
+//     device-list / sign-out-everywhere UX. Lifetime is config-driven
+//     (Jwt:AccessTokenLifetimeMinutes) so it can be tightened later.
 //   - Per-email rate limit not yet implemented; IP-based limit only. TODO
 //     v1.5: add a second partition keyed on sha256(normalizedEmail) for
 //     spam amplification defence.
