@@ -149,16 +149,10 @@ else
     app.UseHsts();
 }
 
-// In production the API container also serves the published Blazor WASM client
-// (see Dockerfile — published Pots.Client is copied into wwwroot). Same-origin
-// hosting removes the need for CORS in the happy path and lets the SPA call
-// the API with relative URLs.
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
-
-// Fly terminates TLS at the edge and forwards HTTP. Calling UseHttpsRedirection
-// inside the container would try to redirect to https on the internal port and
-// loop. Skip it in non-Development; HSTS + the edge TLS are enough.
+// Render/Fly terminate TLS at the edge and forward HTTP to the container.
+// Calling UseHttpsRedirection inside the container would try to redirect to
+// https on the internal port and loop. Skip it in non-Development; HSTS plus
+// the edge TLS are enough.
 if (app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -182,9 +176,8 @@ app.MapTrendsEndpoints();
 app.MapReportEndpoints();
 app.MapSharedEndpoints();
 
-// SPA fallback — any non-API path (i.e. anything not matched by an endpoint
-// above) returns the Blazor index.html so client-side routing can take over
-// after a hard refresh on /today, /profile, etc.
-app.MapFallbackToFile("index.html");
+// Health probe for Render — must be public, no auth, fast. Render hits this
+// to decide if the instance is alive and routable.
+app.MapGet("/healthz", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 
 app.Run();

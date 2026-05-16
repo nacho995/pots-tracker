@@ -1,0 +1,48 @@
+# Render Blueprint — POTS PWA backend (API only).
+# Frontend lives on Vercel; this service exposes the JSON API at
+# https://pots-tracker-api.onrender.com (or whatever name Render assigns).
+#
+# How to use:
+#   1. Push this file to GitHub.
+#   2. In Render dashboard: New + → Blueprint → connect github.com/nacho995/pots-tracker.
+#   3. Render reads this file. Free plan, region Frankfurt.
+#   4. You'll be prompted to fill the sync:false env vars (the secrets).
+
+services:
+  - type: web
+    name: pots-tracker-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:8080
+      - key: Email__Provider
+        value: Resend
+      - key: Jwt__Issuer
+        value: pots-tracker
+      - key: Jwt__Audience
+        value: pots-tracker
+      - key: Jwt__SigningKey
+        generateValue: true
+      - key: Jwt__AccessTokenLifetimeMinutes
+        value: "1440"
+      # The frontend's public URL. Used both as the CORS origin and as the
+      # base for magic-link emails so clicking the link lands in the SPA.
+      - key: Cors__AllowedOrigins
+        sync: false
+      - key: Jwt__MagicLinkBaseUrl
+        sync: false
+      # Neon pooled connection string for the pots_app role (RLS-bound).
+      - key: ConnectionStrings__Pots
+        sync: false
+      # Resend HTTP API key + verified-domain sender.
+      - key: Resend__ApiKey
+        sync: false
+      - key: Resend__FromAddress
+        sync: false
