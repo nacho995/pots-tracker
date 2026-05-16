@@ -88,6 +88,12 @@ switch (emailProvider.ToLowerInvariant())
         builder.Services.AddSingleton(apps);
         builder.Services.AddHttpClient<IEmailSender, AppsScriptEmailSender>();
         break;
+    case "mailjet":
+        var mj = builder.Configuration.GetSection("Mailjet").Get<MailjetOptions>()
+            ?? throw new InvalidOperationException("Mailjet section missing.");
+        builder.Services.AddSingleton(mj);
+        builder.Services.AddHttpClient<IEmailSender, MailjetEmailSender>();
+        break;
     case "resend":
         var resend = builder.Configuration.GetSection("Resend").Get<ResendOptions>()
             ?? throw new InvalidOperationException("Resend section missing.");
