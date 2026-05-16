@@ -3,135 +3,139 @@
 @inject ActionClient ActionClient
 @inject TargetsClient TargetsClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Acciones del día — POTS</PageTitle>
+<PageTitle>@Lang.T("actions.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Registro · acciones · @FormatToday()</p>
+    <p class="eyebrow">@Lang.T("actions.eyebrow") · @FormatToday()</p>
 
     @if (saved)
     {
-        <h1><span class="accent-rule"></span>Anotado.</h1>
-        <p class="lead">Día cerrado. Te lo guardamos.</p>
+        <h1><span class="accent-rule"></span>@Lang.T("actions.saved.title")</h1>
+        <p class="lead">@Lang.T("actions.saved.lead")</p>
         <a href="/today" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;width:auto;">
-            <span>Volver a hoy</span><span class="arrow" aria-hidden="true">→</span>
+            <span>@Lang.T("common.backToToday")</span><span class="arrow" aria-hidden="true">→</span>
         </a>
     }
     else
     {
-        <h1><span class="accent-rule"></span>Lo que has hecho hoy.</h1>
-        <p class="lead">Marca lo que sí. No te preocupes por lo que no.</p>
+        <h1><span class="accent-rule"></span>@Lang.T("actions.title")</h1>
+        <p class="lead">@Lang.T("actions.lead")</p>
 
         <EditForm Model="this" OnValidSubmit="SaveAsync" class="flow">
 
             <section class="card flow">
-                <p class="card__label">Hidratación</p>
-                <label for="fluid">Líquido total (ml)</label>
+                <p class="card__label">@Lang.T("actions.hydration.label")</p>
+                <label for="fluid">@Lang.T("actions.hydration.fluid")</label>
                 <input id="fluid" type="number" min="0" max="20000" @bind="form.FluidMl" placeholder="2500" />
 
-                <label class="checkbox-row"><input type="checkbox" @bind="form.ElectrolyteTaken" /><span>Tomé bebida con electrolitos.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.MorningWaterBeforeStanding" /><span>Bebí agua antes de levantarme.</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.ElectrolyteTaken" /><span>@Lang.T("actions.hydration.electrolyte")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.MorningWaterBeforeStanding" /><span>@Lang.T("actions.hydration.morningWater")</span></label>
 
-                <label for="urine">Color de la orina</label>
+                <label for="urine">@Lang.T("actions.hydration.urineColor")</label>
                 <select id="urine" class="text-input" @bind="form.UrineColor">
-                    <option value="">— sin especificar —</option>
-                    <option value="Pale">Clara</option>
-                    <option value="Dark">Oscura</option>
-                    <option value="Unsure">No estoy segura</option>
+                    <option value="">@Lang.T("common.unspecified")</option>
+                    <option value="Pale">@Lang.T("actions.hydration.urine.pale")</option>
+                    <option value="Dark">@Lang.T("actions.hydration.urine.dark")</option>
+                    <option value="Unsure">@Lang.T("actions.hydration.urine.unsure")</option>
                 </select>
             </section>
 
+            @* Salt is clinician-gated (CLAUDE.md §2): the field only renders when
+               the patient has explicitly enabled the salt target. Never default on. *@
             @if (saltTargetEnabled)
             {
                 <section class="card flow">
-                    <p class="card__label">Sal · prescrita por tu médico</p>
+                    <p class="card__label">@Lang.T("actions.salt.label")</p>
                     <label class="checkbox-row">
                         <input type="checkbox" @bind="form.SaltTargetReached" />
-                        <span>Llegué a mi objetivo de sal.</span>
+                        <span>@Lang.T("actions.salt.reached")</span>
                     </label>
                 </section>
             }
 
             <section class="card flow">
-                <p class="card__label">Nutrición</p>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.RegularMeals" /><span>Comidas a horas regulares.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.SkippedBreakfast" /><span>Salté el desayuno.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.SmallFrequentMeals" /><span>Comidas pequeñas y frecuentes.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedLargeHighCarbMeal" /><span>Evité comidas grandes / muy hidratos.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.AdequateProtein" /><span>Comí suficiente proteína.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.AlcoholAvoided" /><span>Sin alcohol.</span></label>
+                <p class="card__label">@Lang.T("actions.nutrition.label")</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.RegularMeals" /><span>@Lang.T("actions.nutrition.regular")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.SkippedBreakfast" /><span>@Lang.T("actions.nutrition.skippedBreakfast")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.SmallFrequentMeals" /><span>@Lang.T("actions.nutrition.smallFrequent")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedLargeHighCarbMeal" /><span>@Lang.T("actions.nutrition.avoidedBig")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AdequateProtein" /><span>@Lang.T("actions.nutrition.protein")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AlcoholAvoided" /><span>@Lang.T("actions.nutrition.noAlcohol")</span></label>
 
-                <label for="caffeine">Cafeína</label>
+                <label for="caffeine">@Lang.T("actions.nutrition.caffeine")</label>
                 <select id="caffeine" class="text-input" @bind="form.CaffeineLevel">
-                    <option value="None">Ninguna</option>
-                    <option value="Low">Poca</option>
-                    <option value="Moderate">Moderada</option>
-                    <option value="High">Mucha</option>
+                    <option value="None">@Lang.T("actions.nutrition.caffeine.none")</option>
+                    <option value="Low">@Lang.T("actions.nutrition.caffeine.low")</option>
+                    <option value="Moderate">@Lang.T("actions.nutrition.caffeine.moderate")</option>
+                    <option value="High">@Lang.T("actions.nutrition.caffeine.high")</option>
                 </select>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Compresión</p>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.CompressionSocks" /><span>Medias de compresión.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.WaistHighCompression" /><span>Compresión hasta cintura.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.AbdominalCompression" /><span>Faja abdominal.</span></label>
-                <label for="comp-hours">Horas con compresión</label>
+                <p class="card__label">@Lang.T("actions.compression.label")</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.CompressionSocks" /><span>@Lang.T("actions.compression.socks")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.WaistHighCompression" /><span>@Lang.T("actions.compression.waist")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AbdominalCompression" /><span>@Lang.T("actions.compression.abdominal")</span></label>
+                <label for="comp-hours">@Lang.T("actions.compression.hours")</label>
                 <input id="comp-hours" type="number" min="0" max="24" @bind="form.CompressionHoursWorn" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Ejercicio</p>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.RecumbentExercise" /><span>Ejercicio tumbada/reclinada.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.Walking" /><span>Andar.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.Strength" /><span>Fuerza.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.Stretching" /><span>Estiramientos.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.PtExercises" /><span>Ejercicios de fisio.</span></label>
-                <label for="ex-min">Duración total (minutos)</label>
+                <p class="card__label">@Lang.T("actions.exercise.label")</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.RecumbentExercise" /><span>@Lang.T("actions.exercise.recumbent")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.Walking" /><span>@Lang.T("actions.exercise.walking")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.Strength" /><span>@Lang.T("actions.exercise.strength")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.Stretching" /><span>@Lang.T("actions.exercise.stretching")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.PtExercises" /><span>@Lang.T("actions.exercise.pt")</span></label>
+                <label for="ex-min">@Lang.T("actions.exercise.duration")</label>
                 <input id="ex-min" type="number" min="0" max="1440" @bind="form.ExerciseDurationMinutes" />
-                <label for="ex-int">Intensidad (palabras tuyas)</label>
-                <input id="ex-int" type="text" maxlength="50" @bind="form.ExerciseIntensity" placeholder="suave / moderada / fuerte" />
-                <label for="post-ex">¿Cómo te sentiste después?</label>
-                <input id="post-ex" type="text" maxlength="500" @bind="form.PostExerciseSymptoms" placeholder="bien, fatigada, mareo..." />
+                <label for="ex-int">@Lang.T("actions.exercise.intensity")</label>
+                <input id="ex-int" type="text" maxlength="50" @bind="form.ExerciseIntensity" placeholder="@Lang.T("actions.exercise.intensity.placeholder")" />
+                <label for="post-ex">@Lang.T("actions.exercise.post")</label>
+                <input id="post-ex" type="text" maxlength="500" @bind="form.PostExerciseSymptoms" placeholder="@Lang.T("actions.exercise.post.placeholder")" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Pacing y descanso</p>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.PlannedRestBreaks" /><span>Descansos planificados.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedOverexertion" /><span>Evité pasarme.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.UsedActivityPacing" /><span>Apliqué pacing.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedLongStanding" /><span>Evité estar mucho rato de pie.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.SatDuringShowerCooking" /><span>Me senté en la ducha / cocinando.</span></label>
-                <label for="mobility">Ayuda de movilidad (si la usaste)</label>
-                <input id="mobility" type="text" maxlength="100" @bind="form.MobilityAid" placeholder="bastón, silla, taburete..." />
+                <p class="card__label">@Lang.T("actions.pacing.label")</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.PlannedRestBreaks" /><span>@Lang.T("actions.pacing.rest")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedOverexertion" /><span>@Lang.T("actions.pacing.noOver")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.UsedActivityPacing" /><span>@Lang.T("actions.pacing.applied")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedLongStanding" /><span>@Lang.T("actions.pacing.noLongStanding")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.SatDuringShowerCooking" /><span>@Lang.T("actions.pacing.satShower")</span></label>
+                <label for="mobility">@Lang.T("actions.pacing.mobility")</label>
+                <input id="mobility" type="text" maxlength="100" @bind="form.MobilityAid" placeholder="@Lang.T("actions.pacing.mobility.placeholder")" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Calor</p>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedHeat" /><span>Evité el calor.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.UsedCoolingVestFan" /><span>Usé chaleco/ventilador refrescante.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.ColdShower" /><span>Ducha o paño frío.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedHotBathSauna" /><span>Evité baño caliente / sauna.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.StayedInShadeAc" /><span>Me mantuve a la sombra / aire acondicionado.</span></label>
+                <p class="card__label">@Lang.T("actions.heat.label")</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedHeat" /><span>@Lang.T("actions.heat.avoid")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.UsedCoolingVestFan" /><span>@Lang.T("actions.heat.cooling")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.ColdShower" /><span>@Lang.T("actions.heat.coldShower")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.AvoidedHotBathSauna" /><span>@Lang.T("actions.heat.noHotBath")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.StayedInShadeAc" /><span>@Lang.T("actions.heat.shade")</span></label>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Sueño</p>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.SleptEnough" /><span>Dormí lo suficiente.</span></label>
-                <SymptomScale Label="Calidad del sueño" @bind-Value="form.SleepQuality" />
-                <label class="checkbox-row"><input type="checkbox" @bind="form.ConsistentBedtimes" /><span>Horarios consistentes.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.NapTaken" /><span>Me eché una siesta.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="wokeRefreshedYes" /><span>Me levanté descansada.</span></label>
+                <p class="card__label">@Lang.T("actions.sleep.label")</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.SleptEnough" /><span>@Lang.T("actions.sleep.enough")</span></label>
+                <SymptomScale Label="@Lang.T("actions.sleep.quality")" @bind-Value="form.SleepQuality" />
+                <label class="checkbox-row"><input type="checkbox" @bind="form.ConsistentBedtimes" /><span>@Lang.T("actions.sleep.consistent")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.NapTaken" /><span>@Lang.T("actions.sleep.nap")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="wokeRefreshedYes" /><span>@Lang.T("actions.sleep.refreshed")</span></label>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Medicación</p>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.MedicationTakenAsPrescribed" /><span>Tomé mi medicación según indicación.</span></label>
-                <label class="checkbox-row"><input type="checkbox" @bind="form.MissedDose" /><span>Me salté una dosis.</span></label>
-                <label for="side">Efectos secundarios</label>
-                <input id="side" type="text" maxlength="500" @bind="form.SideEffects" placeholder="qué notaste" />
-                <label for="newmed">Medicación / suplemento nuevo</label>
+                <p class="card__label">@Lang.T("actions.med.label")</p>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.MedicationTakenAsPrescribed" /><span>@Lang.T("actions.med.taken")</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="form.MissedDose" /><span>@Lang.T("actions.med.missed")</span></label>
+                <label for="side">@Lang.T("actions.med.side")</label>
+                <input id="side" type="text" maxlength="500" @bind="form.SideEffects" placeholder="@Lang.T("actions.med.side.placeholder")" />
+                <label for="newmed">@Lang.T("actions.med.new")</label>
                 <input id="newmed" type="text" maxlength="200" @bind="form.NewMedicationOrSupplement" />
-                <label class="checkbox-row"><input type="checkbox" @bind="rescueMedYes" /><span>Tomé medicación de rescate (si la tienes prescrita).</span></label>
+                <label class="checkbox-row"><input type="checkbox" @bind="rescueMedYes" /><span>@Lang.T("actions.med.rescue")</span></label>
             </section>
 
             @if (errorMessage is not null)
@@ -141,11 +145,11 @@
 
             <div class="action-row">
                 <button type="submit" class="btn--primary" disabled="@busy">
-                    <span>@(busy ? "Guardando..." : "Guardar el día")</span>
+                    <span>@(busy ? Lang.T("saving") : Lang.T("actions.saveBtn"))</span>
                     <span class="arrow" aria-hidden="true">→</span>
                 </button>
                 <a href="/today" class="btn--ghost" style="text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;">
-                    Cancelar
+                    @Lang.T("cancel")
                 </a>
             </div>
         </EditForm>
@@ -153,10 +157,6 @@
 </div>
 
 @code {
-    private static readonly string[] MonthsEs =
-        { "enero","febrero","marzo","abril","mayo","junio",
-          "julio","agosto","septiembre","octubre","noviembre","diciembre" };
-
     private ActionsForm form = new();
     private bool wokeRefreshedYes;
     private bool rescueMedYes;
@@ -167,6 +167,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
@@ -179,6 +180,10 @@
         }
         catch { saltTargetEnabled = false; }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task SaveAsync()
     {
@@ -240,15 +245,23 @@
         }
         catch (HttpRequestException)
         {
-            errorMessage = "No se ha podido guardar. Inténtalo de nuevo.";
+            errorMessage = Lang.T("common.saveError");
         }
         finally { busy = false; }
     }
 
-    private static string FormatToday()
+    // Localized day-of-month label per current language. Mirrors the helper
+    // used in Profile.razor; English uses "Month Day", FR/ES use "Day Month".
+    private string FormatToday()
     {
         var d = DateTime.Now;
-        return $"{d.Day} de {MonthsEs[d.Month - 1]}";
+        var months = Lang.Current switch
+        {
+            "fr" => new[] { "janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre" },
+            "en" => new[] { "January","February","March","April","May","June","July","August","September","October","November","December" },
+            _    => new[] { "enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre" },
+        };
+        return Lang.Current == "en" ? $"{months[d.Month - 1]} {d.Day}" : $"{d.Day} {(Lang.Current == "fr" ? "" : "de ")}{months[d.Month - 1]}";
     }
 
     private sealed class ActionsForm

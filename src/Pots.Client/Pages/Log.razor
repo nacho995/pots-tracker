@@ -1,34 +1,36 @@
 @page "/log"
 @inject AuthClient Auth
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Registrar — POTS</PageTitle>
+<PageTitle>@Lang.T("log.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Registrar</p>
-    <h1><span class="accent-rule"></span>¿Qué quieres<br />apuntar?</h1>
-    <p class="lead">Cuatro formas de dejar constancia. Solo lo que te apetezca.</p>
+    <p class="eyebrow">@Lang.T("log.eyebrow")</p>
+    <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("log.title"))</h1>
+    <p class="lead">@Lang.T("log.lead")</p>
 
     <div class="log-grid">
         <a href="/log/symptoms" class="log-tile">
             <span class="log-tile__num" aria-hidden="true">·</span>
-            <span class="log-tile__title">Síntomas</span>
-            <span class="log-tile__hint">Escalas 0-10 de cómo te encuentras ahora mismo.</span>
+            <span class="log-tile__title">@Lang.T("log.tile.symptoms")</span>
+            <span class="log-tile__hint">@Lang.T("log.tile.symptoms.hint")</span>
         </a>
         <a href="/log/vitals" class="log-tile">
             <span class="log-tile__num" aria-hidden="true">·</span>
-            <span class="log-tile__title">Vitales</span>
-            <span class="log-tile__hint">Pulso, tensión, sueño, pasos, ejercicio.</span>
+            <span class="log-tile__title">@Lang.T("log.tile.vitals")</span>
+            <span class="log-tile__hint">@Lang.T("log.tile.vitals.hint")</span>
         </a>
         <a href="/log/actions" class="log-tile">
             <span class="log-tile__num" aria-hidden="true">·</span>
-            <span class="log-tile__title">Acciones del día</span>
-            <span class="log-tile__hint">Hidratación, compresión, pacing, medicación.</span>
+            <span class="log-tile__title">@Lang.T("log.tile.actions")</span>
+            <span class="log-tile__hint">@Lang.T("log.tile.actions.hint")</span>
         </a>
         <a href="/episode/new" class="log-tile log-tile--accent">
             <span class="log-tile__num" aria-hidden="true">!</span>
-            <span class="log-tile__title">Episodio</span>
-            <span class="log-tile__hint">Para registrar un episodio severo después.</span>
+            <span class="log-tile__title">@Lang.T("log.tile.episode")</span>
+            <span class="log-tile__hint">@Lang.T("log.tile.episode.hint")</span>
         </a>
     </div>
 
@@ -37,9 +39,14 @@
 @code {
     protected override void OnInitialized()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
         }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 }

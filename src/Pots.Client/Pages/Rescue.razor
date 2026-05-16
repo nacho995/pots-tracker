@@ -2,100 +2,99 @@
 @inject AuthClient Auth
 @inject TargetsClient TargetsClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Rescate — POTS</PageTitle>
+<PageTitle>@Lang.T("rescue.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Rescate</p>
-    <h1><span class="accent-rule"></span>Estoy contigo.<br />Probemos algo.</h1>
-    <p class="lead">
-        Acciones clínicamente aprobadas para los momentos malos.
-        Empieza por las más cercanas a ti.
-    </p>
+    <p class="eyebrow">@Lang.T("rescue.eyebrow")</p>
+    <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("rescue.title"))</h1>
+    <p class="lead">@Lang.T("rescue.lead")</p>
 
     <EmergencyTriage />
 
     <section class="card flow">
-        <p class="card__label">Postura</p>
+        <p class="card__label">@Lang.T("rescue.group.posture")</p>
         <ul class="rescue-list">
             <li class="rescue-list__item">
                 <span class="rescue-list__num" aria-hidden="true">1</span>
                 <div>
-                    <p class="rescue-list__title">Túmbate.</p>
-                    <p class="rescue-list__hint">Donde estés. El suelo si hace falta. Sin prisa.</p>
+                    <p class="rescue-list__title">@Lang.T("rescue.lie.title")</p>
+                    <p class="rescue-list__hint">@Lang.T("rescue.lie.hint")</p>
                 </div>
             </li>
             <li class="rescue-list__item">
                 <span class="rescue-list__num" aria-hidden="true">2</span>
                 <div>
-                    <p class="rescue-list__title">Eleva las piernas.</p>
-                    <p class="rescue-list__hint">Sobre una silla, sobre la pared, lo que tengas más a mano.</p>
+                    <p class="rescue-list__title">@Lang.T("rescue.legs.title")</p>
+                    <p class="rescue-list__hint">@Lang.T("rescue.legs.hint")</p>
                 </div>
             </li>
             <li class="rescue-list__item">
                 <span class="rescue-list__num" aria-hidden="true">3</span>
                 <div>
-                    <p class="rescue-list__title">Maniobras: cruza las piernas, tensa los gemelos.</p>
-                    <p class="rescue-list__hint">Repite varias veces. Ayuda a que la sangre vuelva.</p>
+                    <p class="rescue-list__title">@Lang.T("rescue.maneuver.title")</p>
+                    <p class="rescue-list__hint">@Lang.T("rescue.maneuver.hint")</p>
                 </div>
             </li>
         </ul>
     </section>
 
     <section class="card flow">
-        <p class="card__label">Hidratación y temperatura</p>
+        <p class="card__label">@Lang.T("rescue.group.hydration")</p>
         <ul class="rescue-list">
             <li class="rescue-list__item">
                 <span class="rescue-list__num" aria-hidden="true">4</span>
                 <div>
-                    <p class="rescue-list__title">Bebe agua o bebida con electrolitos.</p>
-                    <p class="rescue-list__hint">Si la tienes a mano. Pequeños sorbos seguidos.</p>
+                    <p class="rescue-list__title">@Lang.T("rescue.drink.title")</p>
+                    <p class="rescue-list__hint">@Lang.T("rescue.drink.hint")</p>
                 </div>
             </li>
+            @* Salt is clinician-gated (CLAUDE.md §2): only displayed if the
+               patient has explicitly enabled the salt target. Never default on. *@
             @if (saltTargetEnabled)
             {
                 <li class="rescue-list__item rescue-list__item--gated">
                     <span class="rescue-list__num" aria-hidden="true">·</span>
                     <div>
-                        <p class="rescue-list__title">Toma tu sal/electrolito.</p>
-                        <p class="rescue-list__hint">
-                            Tu médico te lo ha prescrito. Sigue tu dosis habitual.
-                        </p>
+                        <p class="rescue-list__title">@Lang.T("rescue.salt.title")</p>
+                        <p class="rescue-list__hint">@Lang.T("rescue.salt.hint")</p>
                     </div>
                 </li>
             }
             <li class="rescue-list__item">
                 <span class="rescue-list__num" aria-hidden="true">5</span>
                 <div>
-                    <p class="rescue-list__title">Enfríate.</p>
-                    <p class="rescue-list__hint">Aire fresco, paño frío en la frente o nuca, abre la ventana.</p>
+                    <p class="rescue-list__title">@Lang.T("rescue.cool.title")</p>
+                    <p class="rescue-list__hint">@Lang.T("rescue.cool.hint")</p>
                 </div>
             </li>
             <li class="rescue-list__item">
                 <span class="rescue-list__num" aria-hidden="true">6</span>
                 <div>
-                    <p class="rescue-list__title">Revisa tu compresión.</p>
-                    <p class="rescue-list__hint">Si tienes medias o faja puesta, comprueba que estén bien.</p>
+                    <p class="rescue-list__title">@Lang.T("rescue.compression.title")</p>
+                    <p class="rescue-list__hint">@Lang.T("rescue.compression.hint")</p>
                 </div>
             </li>
         </ul>
     </section>
 
     <section class="card flow">
-        <p class="card__label">Entorno</p>
+        <p class="card__label">@Lang.T("rescue.group.environment")</p>
         <ul class="rescue-list">
             <li class="rescue-list__item">
                 <span class="rescue-list__num" aria-hidden="true">7</span>
                 <div>
-                    <p class="rescue-list__title">Evita estar de pie.</p>
-                    <p class="rescue-list__hint">Si tienes que moverte, hazlo despacio y apóyate en algo.</p>
+                    <p class="rescue-list__title">@Lang.T("rescue.avoidStanding.title")</p>
+                    <p class="rescue-list__hint">@Lang.T("rescue.avoidStanding.hint")</p>
                 </div>
             </li>
             <li class="rescue-list__item">
                 <span class="rescue-list__num" aria-hidden="true">8</span>
                 <div>
-                    <p class="rescue-list__title">Llama a alguien de confianza.</p>
-                    <p class="rescue-list__hint">No tienes que pasar esto sola.</p>
+                    <p class="rescue-list__title">@Lang.T("rescue.call.title")</p>
+                    <p class="rescue-list__hint">@Lang.T("rescue.call.hint")</p>
                 </div>
             </li>
         </ul>
@@ -103,16 +102,14 @@
 
     <hr class="divider divider--ornament" aria-hidden="true" />
 
-    <p class="muted" style="text-align:center;">
-        Cuando estés mejor, si quieres:
-    </p>
+    <p class="muted" style="text-align:center;">@Lang.T("rescue.after.lead")</p>
     <div class="action-row">
         <a href="/episode/new" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;">
-            <span>Registrar el episodio</span>
+            <span>@Lang.T("rescue.after.logEpisode")</span>
             <span class="arrow" aria-hidden="true">→</span>
         </a>
         <a href="/today" class="btn--ghost" style="text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;">
-            Volver
+            @Lang.T("back")
         </a>
     </div>
 </div>
@@ -122,6 +119,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
@@ -141,4 +139,8 @@
             saltTargetEnabled = false;
         }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 }

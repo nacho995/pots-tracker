@@ -2,107 +2,106 @@
 @inject AuthClient Auth
 @inject VitalClient VitalClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Vitales — POTS</PageTitle>
+<PageTitle>@Lang.T("vitals.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Registro · vitales</p>
+    <p class="eyebrow">@Lang.T("vitals.eyebrow")</p>
 
     @if (saved)
     {
-        <h1><span class="accent-rule"></span>Anotado.</h1>
-        <p class="lead">Las medidas quedan archivadas para tu informe.</p>
+        <h1><span class="accent-rule"></span>@Lang.T("vitals.saved.title")</h1>
+        <p class="lead">@Lang.T("vitals.saved.lead")</p>
         <div class="action-row">
             <a href="/today" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;">
-                <span>Volver a hoy</span><span class="arrow" aria-hidden="true">→</span>
+                <span>@Lang.T("common.backToToday")</span><span class="arrow" aria-hidden="true">→</span>
             </a>
-            <button class="btn--ghost" @onclick="Reset">Otra medición</button>
+            <button class="btn--ghost" @onclick="Reset">@Lang.T("vitals.saved.again")</button>
         </div>
     }
     else
     {
-        <h1><span class="accent-rule"></span>Tus medidas.</h1>
-        <p class="lead">
-            Rellena lo que tengas. Las medidas tumbada / sentada / de pie
-            son las más útiles para el criterio POTS.
-        </p>
+        <h1><span class="accent-rule"></span>@Lang.T("vitals.title")</h1>
+        <p class="lead">@Lang.T("vitals.lead")</p>
 
         <EditForm Model="this" OnValidSubmit="SaveAsync" class="flow">
 
             <section class="card flow">
-                <p class="card__label">Frecuencia cardíaca (lpm)</p>
-                <label for="hr-rest">Tumbada / reposo</label>
+                <p class="card__label">@Lang.T("vitals.hr.label")</p>
+                <label for="hr-rest">@Lang.T("vitals.hr.resting")</label>
                 <input id="hr-rest" type="number" min="20" max="250" @bind="form.RestingHrBpm" />
 
-                <label for="hr-2">De pie · 2 minutos</label>
+                <label for="hr-2">@Lang.T("vitals.hr.standing2")</label>
                 <input id="hr-2" type="number" min="20" max="250" @bind="form.StandingHrBpm2Min" />
 
-                <label for="hr-5">De pie · 5 minutos</label>
+                <label for="hr-5">@Lang.T("vitals.hr.standing5")</label>
                 <input id="hr-5" type="number" min="20" max="250" @bind="form.StandingHrBpm5Min" />
 
-                <label for="hr-10">De pie · 10 minutos</label>
+                <label for="hr-10">@Lang.T("vitals.hr.standing10")</label>
                 <input id="hr-10" type="number" min="20" max="250" @bind="form.StandingHrBpm10Min" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Tensión arterial (sis / dia)</p>
+                <p class="card__label">@Lang.T("vitals.bp.label")</p>
 
-                <label>Tumbada</label>
+                <label>@Lang.T("vitals.bp.lying")</label>
                 <div class="bp-row">
-                    <input type="number" min="50" max="250" @bind="form.BpLyingSystolic" placeholder="120" aria-label="Sistólica tumbada" />
+                    <input type="number" min="50" max="250" @bind="form.BpLyingSystolic" placeholder="120" aria-label="@Lang.T("vitals.bp.sysLying")" />
                     <span class="bp-row__sep" aria-hidden="true">/</span>
-                    <input type="number" min="30" max="180" @bind="form.BpLyingDiastolic" placeholder="80" aria-label="Diastólica tumbada" />
+                    <input type="number" min="30" max="180" @bind="form.BpLyingDiastolic" placeholder="80" aria-label="@Lang.T("vitals.bp.diaLying")" />
                 </div>
 
-                <label>Sentada</label>
+                <label>@Lang.T("vitals.bp.sitting")</label>
                 <div class="bp-row">
-                    <input type="number" min="50" max="250" @bind="form.BpSittingSystolic" placeholder="120" aria-label="Sistólica sentada" />
+                    <input type="number" min="50" max="250" @bind="form.BpSittingSystolic" placeholder="120" aria-label="@Lang.T("vitals.bp.sysSitting")" />
                     <span class="bp-row__sep" aria-hidden="true">/</span>
-                    <input type="number" min="30" max="180" @bind="form.BpSittingDiastolic" placeholder="80" aria-label="Diastólica sentada" />
+                    <input type="number" min="30" max="180" @bind="form.BpSittingDiastolic" placeholder="80" aria-label="@Lang.T("vitals.bp.diaSitting")" />
                 </div>
 
-                <label>De pie</label>
+                <label>@Lang.T("vitals.bp.standing")</label>
                 <div class="bp-row">
-                    <input type="number" min="50" max="250" @bind="form.BpStandingSystolic" placeholder="120" aria-label="Sistólica de pie" />
+                    <input type="number" min="50" max="250" @bind="form.BpStandingSystolic" placeholder="120" aria-label="@Lang.T("vitals.bp.sysStanding")" />
                     <span class="bp-row__sep" aria-hidden="true">/</span>
-                    <input type="number" min="30" max="180" @bind="form.BpStandingDiastolic" placeholder="80" aria-label="Diastólica de pie" />
+                    <input type="number" min="30" max="180" @bind="form.BpStandingDiastolic" placeholder="80" aria-label="@Lang.T("vitals.bp.diaStanding")" />
                 </div>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Otros</p>
+                <p class="card__label">@Lang.T("vitals.other.label")</p>
 
-                <label for="spo2">SpO₂ (%)</label>
+                <label for="spo2">@Lang.T("vitals.spo2")</label>
                 <input id="spo2" type="number" min="50" max="100" @bind="form.Spo2Percent" />
 
-                <label for="weight">Peso (kg)</label>
+                <label for="weight">@Lang.T("vitals.weight")</label>
                 <input id="weight" type="number" step="0.1" @bind="form.WeightKg" />
 
-                <label for="cycle">Día del ciclo menstrual</label>
+                <label for="cycle">@Lang.T("vitals.cycle")</label>
                 <input id="cycle" type="number" min="1" max="60" @bind="form.MenstrualCycleDay" />
 
-                <label for="temp">Temperatura ambiente (°C)</label>
+                <label for="temp">@Lang.T("vitals.temp")</label>
                 <input id="temp" type="number" step="0.1" @bind="form.AmbientTempC" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Sueño y actividad</p>
+                <p class="card__label">@Lang.T("vitals.sleep.label")</p>
 
-                <label for="sleep-min">Sueño total (minutos)</label>
+                <label for="sleep-min">@Lang.T("vitals.sleep.duration")</label>
                 <input id="sleep-min" type="number" min="0" max="1440" @bind="form.SleepDurationMinutes" />
 
-                <SymptomScale Label="Calidad del sueño" @bind-Value="form.SleepQuality" />
+                <SymptomScale Label="@Lang.T("vitals.sleep.quality")" @bind-Value="form.SleepQuality" />
 
-                <label for="steps">Pasos</label>
+                <label for="steps">@Lang.T("vitals.steps")</label>
                 <input id="steps" type="number" min="0" @bind="form.Steps" />
 
-                <label for="ex-min">Minutos de ejercicio</label>
+                <label for="ex-min">@Lang.T("vitals.exMinutes")</label>
                 <input id="ex-min" type="number" min="0" max="1440" @bind="form.ExerciseMinutes" />
 
-                <label for="upright">Tiempo de pie (minutos)</label>
+                <label for="upright">@Lang.T("vitals.upright")</label>
                 <input id="upright" type="number" min="0" max="1440" @bind="form.TimeUprightMinutes" />
 
-                <label for="lying">Tiempo tumbada (minutos)</label>
+                <label for="lying">@Lang.T("vitals.lying")</label>
                 <input id="lying" type="number" min="0" max="1440" @bind="form.TimeLyingMinutes" />
             </section>
 
@@ -113,11 +112,11 @@
 
             <div class="action-row">
                 <button type="submit" class="btn--primary" disabled="@busy">
-                    <span>@(busy ? "Guardando..." : "Guardar")</span>
+                    <span>@(busy ? Lang.T("saving") : Lang.T("save"))</span>
                     <span class="arrow" aria-hidden="true">→</span>
                 </button>
                 <a href="/today" class="btn--ghost" style="text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;">
-                    Cancelar
+                    @Lang.T("cancel")
                 </a>
             </div>
         </EditForm>
@@ -132,11 +131,16 @@
 
     protected override void OnInitialized()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
         }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task SaveAsync()
     {
@@ -171,7 +175,7 @@
         }
         catch (HttpRequestException)
         {
-            errorMessage = "No se ha podido guardar. Inténtalo de nuevo.";
+            errorMessage = Lang.T("common.saveError");
         }
         finally { busy = false; }
     }

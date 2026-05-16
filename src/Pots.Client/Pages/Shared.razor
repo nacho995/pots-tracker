@@ -2,26 +2,25 @@
 @inject AuthClient Auth
 @inject SharedClient SharedClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Compartido contigo — POTS</PageTitle>
+<PageTitle>@Lang.T("shared.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Compartido contigo</p>
-    <h1><span class="accent-rule"></span>Personas<br />que te han<br />invitado.</h1>
-    <p class="lead">
-        Aquí ves los perfiles a los que tienes acceso. Solo lo que cada
-        persona ha decidido compartir contigo.
-    </p>
+    <p class="eyebrow">@Lang.T("shared.eyebrow")</p>
+    <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("shared.title"))</h1>
+    <p class="lead">@Lang.T("shared.lead")</p>
 
     <hr class="divider" aria-hidden="true" />
 
     @if (loading)
     {
-        <p>Cargando...</p>
+        <p>@Lang.T("loading")...</p>
     }
     else if (shared.Count == 0)
     {
-        <p class="muted">Nadie te ha compartido un perfil todavía.</p>
+        <p class="muted">@Lang.T("shared.empty")</p>
     }
     else
     {
@@ -29,9 +28,9 @@
             @foreach (var s in shared)
             {
                 <li class="shared-card">
-                    <p class="card__label">@(s.Role == "Editor" ? "Editor" : "Solo ver") · desde @s.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")</p>
+                    <p class="card__label">@(s.Role == "Editor" ? Lang.T("grants.list.roleEditor") : Lang.T("grants.list.roleViewer")) · @Lang.T("grants.list.since").ToLower() @s.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")</p>
                     <h2>@s.PatientName</h2>
-                    <p class="muted">Propietaria: @s.OwnerEmail</p>
+                    <p class="muted">@Lang.T("shared.owner") @s.OwnerEmail</p>
                 </li>
             }
         </ul>
@@ -40,9 +39,9 @@
     <hr class="divider divider--ornament" aria-hidden="true" />
 
     <p class="muted" style="text-align:center;">
-        <a href="/today" class="btn--link">Tu hoy</a>
+        <a href="/today" class="btn--link">@Lang.T("shared.linkToday")</a>
         &nbsp;·&nbsp;
-        <a href="/profile" class="btn--link">Tu perfil</a>
+        <a href="/profile" class="btn--link">@Lang.T("shared.linkProfile")</a>
     </p>
 </div>
 
@@ -52,6 +51,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
@@ -61,4 +61,8 @@
         catch { /* keep empty */ }
         finally { loading = false; }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 }

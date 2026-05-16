@@ -2,56 +2,57 @@
 @inject AuthClient Auth
 @inject TrendsClient TrendsClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Tendencias — POTS</PageTitle>
+<PageTitle>@Lang.T("trends.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Tendencias · últimos @days días</p>
-    <h1><span class="accent-rule"></span>Lo que observamos.</h1>
+    <p class="eyebrow">@string.Format(Lang.T("trends.eyebrow.range"), days)</p>
+    <h1><span class="accent-rule"></span>@Lang.T("trends.title")</h1>
     <p class="lead">
-        Esto es <em>asociación</em>, no causa. Sirve para ver patrones que
-        después puedes hablar con tu médico.
+        @Lang.T("trends.lead.before")<em>@Lang.T("trends.lead.em")</em>@Lang.T("trends.lead.after")
     </p>
 
     <div class="range-selector">
-        <button class="@(days == 7 ? "active" : "")" @onclick="() => Reload(7)">7 d</button>
-        <button class="@(days == 30 ? "active" : "")" @onclick="() => Reload(30)">30 d</button>
-        <button class="@(days == 90 ? "active" : "")" @onclick="() => Reload(90)">90 d</button>
+        <button class="@(days == 7 ? "active" : "")" @onclick="() => Reload(7)">7 @Lang.T("trends.range.d")</button>
+        <button class="@(days == 30 ? "active" : "")" @onclick="() => Reload(30)">30 @Lang.T("trends.range.d")</button>
+        <button class="@(days == 90 ? "active" : "")" @onclick="() => Reload(90)">90 @Lang.T("trends.range.d")</button>
     </div>
 
     @if (loading)
     {
-        <p>Cargando...</p>
+        <p>@Lang.T("loading")...</p>
     }
     else if (trends is null)
     {
-        <p class="muted">No hay datos suficientes todavía. Sigue registrando algunos días.</p>
+        <p class="muted">@Lang.T("trends.empty")</p>
     }
     else
     {
         <section class="card flow">
-            <p class="card__label">Distribución de días</p>
+            <p class="card__label">@Lang.T("trends.distribution")</p>
             <div class="status-totals">
                 <div class="status-total status-total--green">
                     <span class="status-total__num tabular">@trends.GreenCount</span>
-                    <span class="status-total__label">Bien</span>
+                    <span class="status-total__label">@Lang.T("status.green")</span>
                 </div>
                 <div class="status-total status-total--orange">
                     <span class="status-total__num tabular">@trends.OrangeCount</span>
-                    <span class="status-total__label">Regular</span>
+                    <span class="status-total__label">@Lang.T("status.orange")</span>
                 </div>
                 <div class="status-total status-total--red">
                     <span class="status-total__num tabular">@trends.RedCount</span>
-                    <span class="status-total__label">Mal</span>
+                    <span class="status-total__label">@Lang.T("status.red")</span>
                 </div>
             </div>
         </section>
 
         <section class="card flow">
-            <p class="card__label">Episodios · @trends.EpisodeCount en @trends.RangeDays días</p>
+            <p class="card__label">@string.Format(Lang.T("trends.episodes.label"), trends.EpisodeCount, trends.RangeDays)</p>
             @if (trends.EpisodesPerWeek.Count == 0)
             {
-                <p class="muted">Ningún episodio registrado en este rango. Buenas noticias.</p>
+                <p class="muted">@Lang.T("trends.episodes.none")</p>
             }
             else
             {
@@ -73,12 +74,12 @@
         @if (trends.TopTriggers.Count > 0)
         {
             <section class="card flow">
-                <p class="card__label">Posibles desencadenantes asociados a episodios</p>
+                <p class="card__label">@Lang.T("trends.triggers.label")</p>
                 <ul class="bar-list">
                     @foreach (var t in trends.TopTriggers)
                     {
                         <li class="bar-row">
-                            <span class="bar-row__label">@TriggerEs(t.Trigger)</span>
+                            <span class="bar-row__label">@TriggerLabel(t.Trigger)</span>
                             <span class="bar-row__bar"
                                   style="--w: @(MaxTrigger(trends) == 0 ? 0 : (int)(100.0 * t.Count / MaxTrigger(trends)))%">
                             </span>
@@ -87,36 +88,35 @@
                     }
                 </ul>
                 <p class="muted">
-                    Estos son los desencadenantes que <em>tú anotaste</em> como
-                    sospechosos cuando registraste cada episodio. No es un diagnóstico.
+                    @Lang.T("trends.triggers.disclaimer.before")<em>@Lang.T("trends.triggers.disclaimer.em")</em>@Lang.T("trends.triggers.disclaimer.after")
                 </p>
             </section>
         }
 
         <section class="card flow">
-            <p class="card__label">Carga sintomática media (0-10)</p>
+            <p class="card__label">@Lang.T("trends.burden.label")</p>
             <ul class="avg-list">
-                <li>Fatiga · <strong class="tabular">@FmtAvg(trends.AvgFatigue)</strong></li>
-                <li>Niebla mental · <strong class="tabular">@FmtAvg(trends.AvgBrainFog)</strong></li>
-                <li>Mareo · <strong class="tabular">@FmtAvg(trends.AvgDizziness)</strong></li>
+                <li>@Lang.T("trends.burden.fatigue") · <strong class="tabular">@FmtAvg(trends.AvgFatigue)</strong></li>
+                <li>@Lang.T("trends.burden.brainFog") · <strong class="tabular">@FmtAvg(trends.AvgBrainFog)</strong></li>
+                <li>@Lang.T("trends.burden.dizziness") · <strong class="tabular">@FmtAvg(trends.AvgDizziness)</strong></li>
             </ul>
-            <p class="muted">Calculado sobre los días en los que registraste síntomas.</p>
+            <p class="muted">@Lang.T("trends.burden.note")</p>
         </section>
 
         @if (trends.BestWorst is { } bw)
         {
             <section class="card flow">
-                <p class="card__label">Mejor y peor día</p>
+                <p class="card__label">@Lang.T("trends.bestWorst.label")</p>
                 <div class="best-worst">
                     <div class="best-worst__cell">
-                        <p class="best-worst__label">Mejor</p>
+                        <p class="best-worst__label">@Lang.T("trends.bestWorst.best")</p>
                         <p class="best-worst__day">@(bw.BestDay ?? "—")</p>
-                        <p class="muted">@bw.BestGreen verdes · @bw.BestRed rojos</p>
+                        <p class="muted">@bw.BestGreen @Lang.T("trends.bestWorst.greens") · @bw.BestRed @Lang.T("trends.bestWorst.reds")</p>
                     </div>
                     <div class="best-worst__cell">
-                        <p class="best-worst__label">Peor</p>
+                        <p class="best-worst__label">@Lang.T("trends.bestWorst.worst")</p>
                         <p class="best-worst__day">@(bw.WorstDay ?? "—")</p>
-                        <p class="muted">@bw.WorstRed rojos · @bw.WorstGreen verdes</p>
+                        <p class="muted">@bw.WorstRed @Lang.T("trends.bestWorst.reds") · @bw.WorstGreen @Lang.T("trends.bestWorst.greens")</p>
                     </div>
                 </div>
             </section>
@@ -125,7 +125,7 @@
         @if (trends.SleepQualityVsSymptoms.Count > 0)
         {
             <section class="card flow">
-                <p class="card__label">Calidad del sueño asociada con carga sintomática</p>
+                <p class="card__label">@Lang.T("trends.sleep.label")</p>
                 <ul class="bar-list">
                     @foreach (var r in trends.SleepQualityVsSymptoms)
                     {
@@ -144,7 +144,7 @@
         @if (trends.HydrationVsSymptoms.Count > 0)
         {
             <section class="card flow">
-                <p class="card__label">Hidratación asociada con carga sintomática</p>
+                <p class="card__label">@Lang.T("trends.hydration.label")</p>
                 <ul class="bar-list">
                     @foreach (var r in trends.HydrationVsSymptoms)
                     {
@@ -163,7 +163,7 @@
         @if (trends.CompressionVsSymptoms is not null || trends.NoCompressionVsSymptoms is not null)
         {
             <section class="card flow">
-                <p class="card__label">Compresión asociada con carga sintomática</p>
+                <p class="card__label">@Lang.T("trends.compression.label")</p>
                 <ul class="bar-list">
                     @if (trends.CompressionVsSymptoms is { } cv)
                     {
@@ -188,7 +188,7 @@
         @if (trends.SkipBreakfastVsSymptoms is not null || trends.RegularBreakfastVsSymptoms is not null)
         {
             <section class="card flow">
-                <p class="card__label">Saltarse el desayuno asociado con carga sintomática</p>
+                <p class="card__label">@Lang.T("trends.skipBreakfast.label")</p>
                 <ul class="bar-list">
                     @if (trends.SkipBreakfastVsSymptoms is { } sk)
                     {
@@ -213,7 +213,7 @@
         @if (trends.AmbientTempVsSymptoms.Count > 0)
         {
             <section class="card flow">
-                <p class="card__label">Temperatura ambiente asociada con carga sintomática</p>
+                <p class="card__label">@Lang.T("trends.temp.label")</p>
                 <ul class="bar-list">
                     @foreach (var r in trends.AmbientTempVsSymptoms)
                     {
@@ -230,7 +230,7 @@
         @if (trends.MenstrualPhaseVsSymptoms.Count > 0)
         {
             <section class="card flow">
-                <p class="card__label">Fase del ciclo asociada con carga sintomática</p>
+                <p class="card__label">@Lang.T("trends.cycle.label")</p>
                 <ul class="bar-list">
                     @foreach (var r in trends.MenstrualPhaseVsSymptoms)
                     {
@@ -247,17 +247,17 @@
         @if (trends.ExerciseTolerance is { } ext)
         {
             <section class="card flow">
-                <p class="card__label">Tolerancia al ejercicio</p>
+                <p class="card__label">@Lang.T("trends.exTolerance.label")</p>
                 <ul class="avg-list">
-                    <li>Sesiones registradas · <strong class="tabular">@ext.TotalSessions</strong></li>
-                    <li>Con síntomas post-ejercicio · <strong class="tabular">@ext.SessionsWithPostSymptoms</strong></li>
+                    <li>@Lang.T("trends.exTolerance.sessions") · <strong class="tabular">@ext.TotalSessions</strong></li>
+                    <li>@Lang.T("trends.exTolerance.withPost") · <strong class="tabular">@ext.SessionsWithPostSymptoms</strong></li>
                     @if (ext.SymptomBurdenWhenExercised.HasValue)
                     {
-                        <li>Carga sintomática los días que entrenó · <strong class="tabular">@FmtAvg(ext.SymptomBurdenWhenExercised)</strong></li>
+                        <li>@Lang.T("trends.exTolerance.burdenEx") · <strong class="tabular">@FmtAvg(ext.SymptomBurdenWhenExercised)</strong></li>
                     }
                     @if (ext.SymptomBurdenWhenNotExercised.HasValue)
                     {
-                        <li>Carga sintomática los días que NO entrenó · <strong class="tabular">@FmtAvg(ext.SymptomBurdenWhenNotExercised)</strong></li>
+                        <li>@Lang.T("trends.exTolerance.burdenNoEx") · <strong class="tabular">@FmtAvg(ext.SymptomBurdenWhenNotExercised)</strong></li>
                     }
                 </ul>
             </section>
@@ -266,7 +266,7 @@
         @if (trends.ActionsAssociatedWithFewerReds.Count > 0)
         {
             <section class="card flow">
-                <p class="card__label">Acciones asociadas con menos días Rojos</p>
+                <p class="card__label">@Lang.T("trends.actionsRed.label")</p>
                 <ul class="bar-list">
                     @foreach (var a in trends.ActionsAssociatedWithFewerReds)
                     {
@@ -278,8 +278,7 @@
                     }
                 </ul>
                 <p class="muted">
-                    "−Xpp" = en los días en que sí hiciste esta acción, registraste menos episodios Rojos
-                    (en puntos porcentuales). <em>Asociación, no causa.</em>
+                    @Lang.T("trends.actionsRed.disclaimer.before")<em>@Lang.T("trends.actionsRed.disclaimer.em")</em>
                 </p>
             </section>
         }
@@ -288,35 +287,20 @@
     <hr class="divider divider--ornament" aria-hidden="true" />
 
     <p class="muted" style="text-align:center;">
-        <a href="/today" class="btn--link">Hoy</a>
+        <a href="/today" class="btn--link">@Lang.T("trends.linkToday")</a>
         &nbsp;·&nbsp;
-        <a href="/report" class="btn--link">Informe para tu médico</a>
+        <a href="/report" class="btn--link">@Lang.T("trends.linkReport")</a>
     </p>
 </div>
 
 @code {
-    private static readonly Dictionary<string, string> TriggerLabels = new()
-    {
-        ["Unknown"] = "Desconocido",
-        ["Heat"] = "Calor",
-        ["Dehydration"] = "Deshidratación",
-        ["MissedMeal"] = "Saltar comida",
-        ["Menstrual"] = "Menstruación",
-        ["Stress"] = "Estrés",
-        ["PoorSleep"] = "Mal sueño",
-        ["Exercise"] = "Ejercicio",
-        ["Infection"] = "Infección",
-        ["LongStanding"] = "Mucho de pie",
-        ["Alcohol"] = "Alcohol",
-        ["LargeMeal"] = "Comida grande",
-    };
-
     private TrendsDto? trends;
     private int days = 30;
     private bool loading = true;
 
     protected override async Task OnInitializedAsync()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
@@ -324,6 +308,10 @@
         }
         await Reload(30);
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task Reload(int newDays)
     {
@@ -341,11 +329,28 @@
     private static double MaxAssoc(List<AssociationRow> rows) =>
         rows.Count == 0 ? 0 : rows.Max(r => r.AvgSymptomBurden ?? 0);
     private static string FmtAvg(double? v) => v.HasValue ? v.Value.ToString("0.0") : "—";
-    private static string TriggerEs(string trigger) =>
-        TriggerLabels.TryGetValue(trigger, out var es) ? es : trigger;
 
-    // Buckets vienen prefijados con "1-", "2-" etc para mantener orden de
-    // ordenación; el prefijo se quita para mostrar.
+    // Localized short label for a backend trigger enum. Falls back to the raw
+    // enum name if no translation key matches.
+    private string TriggerLabel(string trigger) => trigger switch
+    {
+        "Unknown" => Lang.T("trigger.short.unknown"),
+        "Heat" => Lang.T("trigger.heat"),
+        "Dehydration" => Lang.T("trigger.dehydration"),
+        "MissedMeal" => Lang.T("trigger.short.missedMeal"),
+        "Menstrual" => Lang.T("trigger.menstrual"),
+        "Stress" => Lang.T("trigger.stress"),
+        "PoorSleep" => Lang.T("trigger.poorSleep"),
+        "Exercise" => Lang.T("trigger.exercise"),
+        "Infection" => Lang.T("trigger.infection"),
+        "LongStanding" => Lang.T("trigger.short.longStanding"),
+        "Alcohol" => Lang.T("trigger.alcohol"),
+        "LargeMeal" => Lang.T("trigger.short.largeMeal"),
+        _ => trigger,
+    };
+
+    // Buckets are pre-fixed with "1-", "2-" etc to preserve sort order; strip
+    // the prefix before display.
     private static string PrettyBucket(string bucket)
     {
         var dash = bucket.IndexOf('-');

@@ -2,27 +2,38 @@
 @inject AuthClient Auth
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Verificando — POTS</PageTitle>
+<PageTitle>POTS</PageTitle>
 
 <div class="shell shell--narrow flow stagger">
-    <p class="eyebrow">Acceso · verificando</p>
+    <p class="eyebrow">@Lang.T("loginVerify.eyebrow")</p>
 
     @if (errorMessage is null)
     {
-        <h1><span class="accent-rule"></span>Un<br />momento.</h1>
-        <p class="lead">Estamos comprobando tu enlace.</p>
+        <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("loginVerify.checking.title"))</h1>
+        <p class="lead">@Lang.T("loginVerify.checking.lead")</p>
     }
     else
     {
-        <h1><span class="accent-rule"></span>Enlace<br />no válido.</h1>
+        <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("loginVerify.invalid.title"))</h1>
         <p class="lead">@errorMessage</p>
-        <a href="/login" class="btn--link">Pedir un enlace nuevo →</a>
+        <a href="/login" class="btn--link">@Lang.T("loginVerify.requestNew")</a>
     }
 </div>
 
 @code {
     private string? errorMessage;
+
+    protected override void OnInitialized()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -33,7 +44,7 @@
 
         if (string.IsNullOrEmpty(rawToken))
         {
-            errorMessage = "El enlace está incompleto. Pide uno nuevo desde la pantalla de inicio.";
+            errorMessage = Lang.T("loginVerify.error.incomplete");
             StateHasChanged();
             return;
         }
@@ -46,7 +57,7 @@
         }
         else
         {
-            errorMessage = "El enlace ha expirado o ya se ha usado. Pide uno nuevo.";
+            errorMessage = Lang.T("loginVerify.error.expired");
             StateHasChanged();
         }
     }

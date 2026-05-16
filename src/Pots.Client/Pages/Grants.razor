@@ -2,39 +2,38 @@
 @inject AuthClient Auth
 @inject GrantClient GrantClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Permisos — POTS</PageTitle>
+<PageTitle>@Lang.T("grants.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Tu perfil · permisos</p>
+    <p class="eyebrow">@Lang.T("grants.eyebrow")</p>
 
-    <h1><span class="accent-rule"></span>Quién puede ver<br />o editar tus datos.</h1>
+    <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("grants.title"))</h1>
 
-    <p class="lead">
-        Por defecto, solo tú. Aquí puedes dar acceso a otra persona y
-        revocarlo cuando quieras.
-    </p>
+    <p class="lead">@Lang.T("grants.lead")</p>
 
     <hr class="divider" aria-hidden="true" />
 
     <section class="card">
-        <p class="card__label">Invitar a alguien</p>
+        <p class="card__label">@Lang.T("grants.invite.label")</p>
         <EditForm Model="this" OnValidSubmit="InviteAsync">
             <div>
-                <label for="grantee-email">Email de la persona</label>
+                <label for="grantee-email">@Lang.T("grants.invite.email")</label>
                 <input id="grantee-email" type="email" inputmode="email" autocomplete="email"
-                       placeholder="su@correo.com" @bind="emailInput" required disabled="@busy" />
+                       placeholder="@Lang.T("grants.invite.emailPlaceholder")" @bind="emailInput" required disabled="@busy" />
             </div>
 
             <fieldset class="role-fieldset">
-                <legend>Tipo de acceso</legend>
+                <legend>@Lang.T("grants.invite.typeLegend")</legend>
                 <label class="role-row">
                     <input type="radio" name="role" value="Viewer"
                            checked="@(roleInput == "Viewer")"
                            @onchange="@(_ => roleInput = "Viewer")" />
                     <span>
-                        <span class="role-row__title">Solo ver</span>
-                        <span class="role-row__hint">Puede leer tus datos pero no modificarlos.</span>
+                        <span class="role-row__title">@Lang.T("grants.invite.viewer")</span>
+                        <span class="role-row__hint">@Lang.T("grants.invite.viewer.hint")</span>
                     </span>
                 </label>
                 <label class="role-row">
@@ -42,8 +41,8 @@
                            checked="@(roleInput == "Editor")"
                            @onchange="@(_ => roleInput = "Editor")" />
                     <span>
-                        <span class="role-row__title">Editar</span>
-                        <span class="role-row__hint">Puede leer y modificar tus datos en tu nombre.</span>
+                        <span class="role-row__title">@Lang.T("grants.invite.editor")</span>
+                        <span class="role-row__hint">@Lang.T("grants.invite.editor.hint")</span>
                     </span>
                 </label>
             </fieldset>
@@ -51,8 +50,8 @@
             <button type="submit" class="btn--primary" disabled="@busy">
                 <span>
                     @(busy
-                        ? "Invitando..."
-                        : (roleInput == "Editor" ? "Invitar a editar" : "Invitar a ver"))
+                        ? Lang.T("grants.invite.sending")
+                        : (roleInput == "Editor" ? Lang.T("grants.invite.inviteToEdit") : Lang.T("grants.invite.inviteToView")))
                 </span>
                 <span class="arrow" aria-hidden="true">→</span>
             </button>
@@ -65,14 +64,14 @@
     </section>
 
     <section class="card card--sunk">
-        <p class="card__label">Personas con acceso</p>
+        <p class="card__label">@Lang.T("grants.list.label")</p>
         @if (loading)
         {
-            <p>Cargando...</p>
+            <p>@Lang.T("loading")...</p>
         }
         else if (grants.Count == 0)
         {
-            <p class="muted">Nadie más tiene acceso a tus datos.</p>
+            <p class="muted">@Lang.T("grants.list.empty")</p>
         }
         else
         {
@@ -84,13 +83,13 @@
                             <p class="grant-row__email">@g.GranteeEmail</p>
                             <p class="grant-row__meta">
                                 <span class="grant-row__role-tag">
-                                    @(g.Role == "Editor" ? "Editor" : "Solo ver")
+                                    @(g.Role == "Editor" ? Lang.T("grants.list.roleEditor") : Lang.T("grants.list.roleViewer"))
                                 </span>
-                                Desde @g.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")
+                                @Lang.T("grants.list.since") @g.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")
                             </p>
                         </div>
                         <button class="btn--quiet" @onclick="@(() => RevokeAsync(g.Id))" disabled="@busy">
-                            Revocar
+                            @Lang.T("grants.list.revoke")
                         </button>
                     </li>
                 }
@@ -100,7 +99,7 @@
 
     <hr class="divider divider--ornament" aria-hidden="true" />
 
-    <a href="/profile" class="btn--link">← Volver a tu perfil</a>
+    <a href="/profile" class="btn--link">@Lang.T("grants.back")</a>
 </div>
 
 @code {
@@ -114,6 +113,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
@@ -121,6 +121,10 @@
         }
         await LoadAsync();
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task LoadAsync()
     {
@@ -139,7 +143,7 @@
             if (ok)
             {
                 inviteOk = true;
-                inviteMessage = $"Listo. Le hemos enviado un enlace a {emailInput} para que entre.";
+                inviteMessage = string.Format(Lang.T("grants.invite.ok"), emailInput);
                 emailInput = "";
                 await LoadAsync();
             }
@@ -148,10 +152,10 @@
                 inviteOk = false;
                 inviteMessage = code switch
                 {
-                    "grant.already_active" => "Esa persona ya tiene acceso activo.",
-                    "grant.invalid_email" => "El email no es válido.",
-                    "grant.self_grant_not_allowed" => "No puedes invitarte a ti misma.",
-                    _ => "No se ha podido invitar. Inténtalo de nuevo."
+                    "grant.already_active" => Lang.T("grants.error.alreadyActive"),
+                    "grant.invalid_email" => Lang.T("grants.error.invalidEmail"),
+                    "grant.self_grant_not_allowed" => Lang.T("grants.error.selfGrant"),
+                    _ => Lang.T("grants.error.generic")
                 };
             }
         }

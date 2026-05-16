@@ -2,49 +2,48 @@
 @inject AuthClient Auth
 @inject TargetsClient TargetsClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Ajustes — POTS</PageTitle>
+<PageTitle>@Lang.T("settings.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Ajustes</p>
-    <h1><span class="accent-rule"></span>Tus objetivos.</h1>
-    <p class="lead">Tú decides qué pones aquí.</p>
+    <p class="eyebrow">@Lang.T("settings.eyebrow")</p>
+    <h1><span class="accent-rule"></span>@Lang.T("settings.title")</h1>
+    <p class="lead">@Lang.T("settings.lead")</p>
 
     @if (loading)
     {
-        <p>Cargando...</p>
+        <p>@Lang.T("loading")...</p>
     }
     else
     {
         <EditForm Model="this" OnValidSubmit="SaveAsync" class="flow">
             <section class="card flow">
-                <p class="card__label">Hidratación</p>
-                <label for="hydration">Objetivo de líquido (ml/día)</label>
+                <p class="card__label">@Lang.T("settings.hydration.label")</p>
+                <label for="hydration">@Lang.T("settings.hydration.target")</label>
                 <input id="hydration" type="number" min="0" max="20000" @bind="form.HydrationTargetMl" />
-                <p class="muted">
-                    Por contexto: en adultos con POTS se suele recomendar 2-3 L/día,
-                    ajustado por tu médico al clima y al ejercicio.
-                </p>
+                <p class="muted">@Lang.T("settings.hydration.hint")</p>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Compresión</p>
-                <label for="compression">Horas con compresión al día (objetivo)</label>
+                <p class="card__label">@Lang.T("settings.compression.label")</p>
+                <label for="compression">@Lang.T("settings.compression.target")</label>
                 <input id="compression" type="number" min="0" max="24" @bind="form.CompressionGoalHoursPerDay" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Sueño</p>
-                <label for="sleep">Objetivo de horas de sueño</label>
+                <p class="card__label">@Lang.T("settings.sleep.label")</p>
+                <label for="sleep">@Lang.T("settings.sleep.target")</label>
                 <input id="sleep" type="number" step="0.5" min="0" max="24" @bind="form.SleepTargetHours" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Plan de ejercicio</p>
-                <label for="ex-plan" class="visually-hidden">Plan de ejercicio</label>
+                <p class="card__label">@Lang.T("settings.exercise.label")</p>
+                <label for="ex-plan" class="visually-hidden">@Lang.T("settings.exercise.label")</label>
                 <textarea id="ex-plan" class="text-input" rows="4" maxlength="2000"
                           @bind="form.ExercisePlanNote"
-                          placeholder="Lo que te ha indicado tu médico o tu fisio. Por ejemplo: bici reclinada 15 min lun/mié/vie..."></textarea>
+                          placeholder="@Lang.T("settings.exercise.placeholder")"></textarea>
             </section>
 
             @if (errorMessage is not null)
@@ -53,48 +52,43 @@
             }
 
             <button type="submit" class="btn--primary" disabled="@busy">
-                <span>@(busy ? "Guardando..." : "Guardar ajustes")</span>
+                <span>@(busy ? Lang.T("saving") : Lang.T("settings.saveBtn"))</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </button>
         </EditForm>
 
         <hr class="divider" aria-hidden="true" />
 
+        @* Salt feature is clinician-gated per CLAUDE.md §2: never default on,
+           require explicit clinician attestation, allow easy disable. *@
         <section class="card flow @(saltEnabled ? "card--accent" : "")">
-            <p class="card__label">Sal · clínicamente sensible</p>
+            <p class="card__label">@Lang.T("settings.salt.label")</p>
 
             @if (!saltEnabled)
             {
-                <h2>El objetivo de sal está apagado.</h2>
+                <h2>@Lang.T("settings.salt.offTitle")</h2>
                 <p>
-                    Aumentar la sal puede ayudar a algunas personas con POTS,
-                    pero <strong>no a todas</strong>. Está contraindicado en
-                    hipertensión, problemas de riñón, embarazo, y algunos
-                    subtipos de POTS. Solo enciéndelo si tu médico lo ha
-                    prescrito explícitamente.
+                    @Lang.T("settings.salt.warning.before")<strong>@Lang.T("settings.salt.warning.strong")</strong>@Lang.T("settings.salt.warning.after")
                 </p>
 
                 @if (!showSaltModal)
                 {
                     <button type="button" class="btn--ghost" @onclick="ShowSaltModal" disabled="@busy">
-                        Activar objetivo de sal
+                        @Lang.T("settings.salt.activate")
                     </button>
                 }
                 else
                 {
                     <div class="salt-form">
-                        <label for="salt-mg">Objetivo (mg/día)</label>
-                        <input id="salt-mg" type="number" min="0" max="50000" @bind="saltMg" placeholder="por ejemplo 6000" />
+                        <label for="salt-mg">@Lang.T("settings.salt.targetMg")</label>
+                        <input id="salt-mg" type="number" min="0" max="50000" @bind="saltMg" placeholder="@Lang.T("settings.salt.targetMgPlaceholder")" />
 
-                        <label for="attestation">¿Quién te lo ha prescrito y qué cantidad?</label>
+                        <label for="attestation">@Lang.T("settings.salt.attestation")</label>
                         <textarea id="attestation" class="text-input" rows="3" maxlength="2000"
                                   @bind="attestation"
-                                  placeholder="Mi cardióloga, Dra. ____, en la consulta del __/__/__, me indicó X g de sal/día"></textarea>
+                                  placeholder="@Lang.T("settings.salt.attestationPlaceholder")"></textarea>
 
-                        <p class="muted">
-                            Este texto se guarda como prueba. Si no tienes una prescripción
-                            clara, no enciendas el objetivo.
-                        </p>
+                        <p class="muted">@Lang.T("settings.salt.attestationHint")</p>
 
                         @if (saltError is not null)
                         {
@@ -103,10 +97,10 @@
 
                         <div class="action-row">
                             <button type="button" class="btn--primary" @onclick="EnableSaltAsync" disabled="@busy">
-                                Confirmar y activar
+                                @Lang.T("settings.salt.confirm")
                             </button>
                             <button type="button" class="btn--ghost" @onclick="HideSaltModal" disabled="@busy">
-                                Cancelar
+                                @Lang.T("cancel")
                             </button>
                         </div>
                     </div>
@@ -114,14 +108,14 @@
             }
             else
             {
-                <h2>Objetivo de sal activo</h2>
-                <p class="card__value">@(targets?.SaltTargetMg) mg/día</p>
+                <h2>@Lang.T("settings.salt.activeTitle")</h2>
+                <p class="card__value">@(targets?.SaltTargetMg) @Lang.T("settings.salt.unit")</p>
                 @if (!string.IsNullOrEmpty(targets?.SaltClinicianAttestation))
                 {
                     <p class="muted">@targets.SaltClinicianAttestation</p>
                 }
                 <button type="button" class="btn--ghost" @onclick="DisableSaltAsync" disabled="@busy">
-                    Apagar objetivo de sal
+                    @Lang.T("settings.salt.disable")
                 </button>
             }
         </section>
@@ -130,9 +124,9 @@
     <hr class="divider divider--ornament" aria-hidden="true" />
 
     <p class="muted" style="text-align:center;">
-        <a href="/profile" class="btn--link">Mi perfil</a>
+        <a href="/profile" class="btn--link">@Lang.T("settings.linkProfile")</a>
         &nbsp;·&nbsp;
-        <a href="/today" class="btn--link">Hoy</a>
+        <a href="/today" class="btn--link">@Lang.T("settings.linkToday")</a>
     </p>
 </div>
 
@@ -151,6 +145,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
@@ -158,6 +153,10 @@
         }
         await LoadAsync();
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task LoadAsync()
     {
@@ -174,7 +173,7 @@
         }
         catch (HttpRequestException)
         {
-            errorMessage = "No se pudo cargar tus ajustes.";
+            errorMessage = Lang.T("settings.loadError");
         }
         finally { loading = false; }
     }
@@ -194,7 +193,7 @@
         }
         catch (HttpRequestException)
         {
-            errorMessage = "No se pudo guardar.";
+            errorMessage = Lang.T("common.saveError");
         }
         finally { busy = false; }
     }
@@ -217,7 +216,7 @@
         saltError = null;
         if (string.IsNullOrWhiteSpace(attestation))
         {
-            saltError = "Escribe el texto de la prescripción. No se puede activar sin atestación explícita.";
+            saltError = Lang.T("settings.salt.attestationRequired");
             return;
         }
         busy = true;
@@ -230,7 +229,7 @@
         }
         catch (HttpRequestException)
         {
-            saltError = "No se pudo activar. Inténtalo de nuevo.";
+            saltError = Lang.T("settings.salt.activateError");
         }
         finally { busy = false; }
     }

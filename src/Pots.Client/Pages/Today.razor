@@ -11,15 +11,15 @@
 <div class="shell flow stagger">
     @if (loading)
     {
-        <p class="eyebrow">Cargando</p>
-        <h1><span class="accent-rule"></span>Un momento.</h1>
+        <p class="eyebrow">@Lang.T("today.loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("today.moment")</h1>
     }
     else if (patient is null)
     {
-        <p class="eyebrow">Antes de empezar</p>
-        <h1><span class="accent-rule"></span>Necesitamos<br />tu nombre.</h1>
-        <p class="lead">Configura tu perfil para empezar a registrar.</p>
-        <a href="/profile" class="btn--link">Ir a tu perfil →</a>
+        <p class="eyebrow">@Lang.T("today.needName.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("today.needName.title"))</h1>
+        <p class="lead">@Lang.T("today.needName.lead")</p>
+        <a href="/profile" class="btn--link">@Lang.T("today.needName.link")</a>
     }
     else if (justRecorded is { } recorded)
     {
@@ -30,43 +30,43 @@
         @if (recorded.Status == "Red")
         {
             <a href="/episode/new" class="btn--primary" style="display:inline-flex;width:auto;">
-                <span>Abrir registro del episodio</span>
+                <span>@Lang.T("today.addEpisode")</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </a>
         }
         else if (recorded.Status == "Orange")
         {
-            <a href="/log/symptoms" class="btn--link">Añadir detalle de síntomas →</a>
+            <a href="/log/symptoms" class="btn--link">@Lang.T("today.addSymptoms")</a>
         }
 
         @if (showDetail)
         {
             <section class="card flow">
-                <p class="card__label">Detalle del momento</p>
+                <p class="card__label">@Lang.T("today.detail.title")</p>
 
-                <label for="d-posture">Postura</label>
+                <label for="d-posture">@Lang.T("today.detail.posture")</label>
                 <select id="d-posture" class="text-input" @bind="detailPosture">
-                    <option value="">— sin especificar —</option>
-                    <option value="Lying">Tumbada</option>
-                    <option value="Sitting">Sentada</option>
-                    <option value="Standing">De pie</option>
-                    <option value="Walking">Caminando</option>
-                    <option value="Shower">En la ducha</option>
-                    <option value="AfterMeal">Después de comer</option>
+                    <option value="">@Lang.T("common.unspecified")</option>
+                    <option value="Lying">@Lang.T("posture.lying")</option>
+                    <option value="Sitting">@Lang.T("posture.sitting")</option>
+                    <option value="Standing">@Lang.T("posture.standing")</option>
+                    <option value="Walking">@Lang.T("posture.walking")</option>
+                    <option value="Shower">@Lang.T("posture.shower")</option>
+                    <option value="AfterMeal">@Lang.T("posture.afterMeal")</option>
                 </select>
 
-                <label for="d-activity">Qué estabas haciendo</label>
+                <label for="d-activity">@Lang.T("today.detail.activity")</label>
                 <input id="d-activity" type="text" maxlength="100" @bind="detailActivity"
-                       placeholder="trabajando, andando, cocinando..." />
+                       placeholder="@Lang.T("today.detail.activity.placeholder")" />
 
-                <label for="d-location">Dónde estabas</label>
+                <label for="d-location">@Lang.T("today.detail.location")</label>
                 <input id="d-location" type="text" maxlength="200" @bind="detailLocation"
-                       placeholder="casa, calle, supermercado..." />
+                       placeholder="@Lang.T("today.detail.location.placeholder")" />
 
-                <label for="d-note">Nota libre</label>
+                <label for="d-note">@Lang.T("today.detail.note")</label>
                 <textarea id="d-note" class="text-input" rows="3" maxlength="1000"
                           @bind="detailNote"
-                          placeholder="lo que quieras recordar"></textarea>
+                          placeholder="@Lang.T("today.detail.note.placeholder")"></textarea>
 
                 @if (detailError is not null)
                 {
@@ -75,11 +75,11 @@
 
                 <div class="action-row">
                     <button class="btn--primary" @onclick="SaveDetailAsync" disabled="@detailBusy">
-                        <span>@(detailBusy ? "Guardando..." : "Guardar detalle")</span>
+                        <span>@(detailBusy ? Lang.T("saving") : Lang.T("today.detail.save"))</span>
                         <span class="arrow" aria-hidden="true">→</span>
                     </button>
                     <button type="button" class="btn--ghost" @onclick="CancelDetail" disabled="@detailBusy">
-                        Cancelar
+                        @Lang.T("cancel")
                     </button>
                 </div>
             </section>
@@ -87,18 +87,18 @@
         else if (HasDetail(recorded))
         {
             <section class="card card--sunk">
-                <p class="card__label">Detalle anotado</p>
-                @if (recorded.Posture is not null) { <p>Postura · <strong>@PostureEs(recorded.Posture)</strong></p> }
-                @if (!string.IsNullOrEmpty(recorded.Activity)) { <p>Haciendo · @recorded.Activity</p> }
-                @if (!string.IsNullOrEmpty(recorded.LocationNote)) { <p>Lugar · @recorded.LocationNote</p> }
-                @if (!string.IsNullOrEmpty(recorded.Note)) { <p>Nota · @recorded.Note</p> }
+                <p class="card__label">@Lang.T("today.detail.saved")</p>
+                @if (recorded.Posture is not null) { <p>@Lang.T("today.detail.row.posture") <strong>@PostureLabel(recorded.Posture)</strong></p> }
+                @if (!string.IsNullOrEmpty(recorded.Activity)) { <p>@Lang.T("today.detail.row.doing") @recorded.Activity</p> }
+                @if (!string.IsNullOrEmpty(recorded.LocationNote)) { <p>@Lang.T("today.detail.row.place") @recorded.LocationNote</p> }
+                @if (!string.IsNullOrEmpty(recorded.Note)) { <p>@Lang.T("today.detail.row.note") @recorded.Note</p> }
             </section>
         }
         else
         {
             <hr class="divider" aria-hidden="true" />
-            <p class="muted">¿Quieres añadir contexto? Postura, qué estabas haciendo, una nota.</p>
-            <button class="btn--ghost" @onclick="OpenDetail">Añadir detalle</button>
+            <p class="muted">@Lang.T("today.detail.suggest")</p>
+            <button class="btn--ghost" @onclick="OpenDetail">@Lang.T("today.detail.add")</button>
         }
 
         <hr class="divider" aria-hidden="true" />
@@ -169,7 +169,7 @@
         @if (todayHistory.Count > 0)
         {
             <hr class="divider" aria-hidden="true" />
-            <p class="card__label">Tus últimas 24 h · toca para corregir</p>
+            <p class="card__label">@Lang.T("today.history.label")</p>
             <ul class="status-history">
                 @foreach (var h in todayHistory)
                 {
@@ -180,7 +180,7 @@
                                 aria-expanded="@(editingId == h.Id)">
                             <span class="status-dot status-dot--@(h.Status.ToLowerInvariant())"></span>
                             <span class="status-history__time tabular">@FormatTime(h.CreatedAt)</span>
-                            <span class="status-history__label">@StatusEs(h.Status)</span>
+                            <span class="status-history__label">@StatusLabel(h.Status)</span>
                             <span class="status-history__chev" aria-hidden="true">@(editingId == h.Id ? "▾" : "›")</span>
                         </button>
                         @if (editingId == h.Id)
@@ -211,10 +211,10 @@
                                 </div>
                                 <div class="action-row">
                                     <button type="button" class="btn--quiet" @onclick="@(() => DeleteHistoryAsync(h))" disabled="@historyBusy">
-                                        @(historyBusy ? "..." : "Eliminar")
+                                        @(historyBusy ? "..." : Lang.T("today.history.delete"))
                                     </button>
                                     <button type="button" class="btn--quiet" @onclick="CloseEdit" disabled="@historyBusy">
-                                        Cerrar
+                                        @Lang.T("today.history.close")
                                     </button>
                                 </div>
                                 @if (historyError is not null)
@@ -231,12 +231,6 @@
 </div>
 
 @code {
-    private static readonly string[] MonthsEs =
-    {
-        "enero", "febrero", "marzo", "abril", "mayo", "junio",
-        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-    };
-
     private PatientDto? patient;
     private bool loading = true;
     private bool busy = false;
@@ -286,7 +280,7 @@
         }
         catch (HttpRequestException)
         {
-            errorMessage = "No se ha podido guardar. Inténtalo de nuevo.";
+            errorMessage = Lang.T("common.saveError");
         }
         finally { busy = false; }
     }
@@ -346,7 +340,7 @@
         }
         catch (HttpRequestException)
         {
-            undoError = "No se pudo deshacer. Inténtalo de nuevo.";
+            undoError = Lang.T("common.saveError");
         }
         finally { undoBusy = false; }
     }
@@ -368,7 +362,7 @@
         }
         catch (HttpRequestException)
         {
-            undoError = "No se pudo cambiar. Inténtalo de nuevo.";
+            undoError = Lang.T("common.saveError");
         }
         finally { undoBusy = false; }
     }
@@ -405,7 +399,7 @@
         }
         catch (HttpRequestException)
         {
-            historyError = "No se pudo cambiar. Inténtalo de nuevo.";
+            historyError = Lang.T("common.saveError");
         }
         finally { historyBusy = false; }
     }
@@ -423,7 +417,7 @@
         }
         catch (HttpRequestException)
         {
-            historyError = "No se pudo eliminar. Inténtalo de nuevo.";
+            historyError = Lang.T("common.saveError");
         }
         finally { historyBusy = false; }
     }
@@ -447,7 +441,7 @@
         }
         catch (HttpRequestException)
         {
-            detailError = "No se pudo guardar el detalle. Inténtalo de nuevo.";
+            detailError = Lang.T("common.saveError");
         }
         finally { detailBusy = false; }
     }
@@ -458,31 +452,40 @@
         || !string.IsNullOrEmpty(d.LocationNote)
         || !string.IsNullOrEmpty(d.Note);
 
-    private static string PostureEs(string? p) => p switch
+    // Localized posture label. Falls back to the raw enum string if no key
+    // matches (defensive: backend may add new enum members before the
+    // translations land).
+    private string PostureLabel(string? p) => p switch
     {
-        "Lying" => "Tumbada",
-        "Sitting" => "Sentada",
-        "Standing" => "De pie",
-        "Walking" => "Caminando",
-        "Shower" => "En la ducha",
-        "AfterMeal" => "Después de comer",
+        "Lying" => Lang.T("posture.lying"),
+        "Sitting" => Lang.T("posture.sitting"),
+        "Standing" => Lang.T("posture.standing"),
+        "Walking" => Lang.T("posture.walking"),
+        "Shower" => Lang.T("posture.shower"),
+        "AfterMeal" => Lang.T("posture.afterMeal"),
         _ => p ?? ""
     };
 
-    private static string FormatToday()
+    private string FormatToday()
     {
         var d = DateTime.Now;
-        return $"{d.Day} de {MonthsEs[d.Month - 1]}";
+        var months = Lang.Current switch
+        {
+            "fr" => new[] { "janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre" },
+            "en" => new[] { "January","February","March","April","May","June","July","August","September","October","November","December" },
+            _    => new[] { "enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre" },
+        };
+        return Lang.Current == "en" ? $"{months[d.Month - 1]} {d.Day}" : $"{d.Day} {(Lang.Current == "fr" ? "" : "de ")}{months[d.Month - 1]}";
     }
 
     private static string FormatTime(DateTimeOffset dt) =>
         dt.ToLocalTime().ToString("HH:mm");
 
-    private static string StatusEs(string status) => status switch
+    private string StatusLabel(string status) => status switch
     {
-        "Green"  => "Bien",
-        "Orange" => "Regular",
-        "Red"    => "Mal",
+        "Green"  => Lang.T("status.green"),
+        "Orange" => Lang.T("status.orange"),
+        "Red"    => Lang.T("status.red"),
         _        => status
     };
 

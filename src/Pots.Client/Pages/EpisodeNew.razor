@@ -2,103 +2,102 @@
 @inject AuthClient Auth
 @inject EpisodeClient EpisodeClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Episodio — POTS</PageTitle>
+<PageTitle>@Lang.T("episode.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Episode log · @FormatToday()</p>
+    <p class="eyebrow">@Lang.T("episode.eyebrow") · @FormatToday()</p>
 
     @if (saved is null)
     {
-        <h1><span class="accent-rule"></span>Cuéntanos<br />qué pasó.</h1>
-        <p class="lead">
-            Solo lo que recuerdes. Mejor algo incompleto que nada;
-            puedes editarlo después.
-        </p>
+        <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("episode.title"))</h1>
+        <p class="lead">@Lang.T("episode.lead")</p>
 
         <EmergencyTriage />
 
         <EditForm Model="this" OnValidSubmit="SaveAsync" class="flow">
             <section class="card flow">
-                <p class="card__label">Cuándo y cuánto</p>
+                <p class="card__label">@Lang.T("episode.when.label")</p>
 
-                <label for="start-time">Empezó alrededor de</label>
+                <label for="start-time">@Lang.T("episode.startTime")</label>
                 <input id="start-time" type="datetime-local" @bind="startTimeLocal" />
 
-                <label for="duration">Duración (minutos, aproximado)</label>
+                <label for="duration">@Lang.T("episode.duration")</label>
                 <input id="duration" type="number" min="0" max="1440" @bind="durationMinutes" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Cómo se sintió</p>
+                <p class="card__label">@Lang.T("episode.how.label")</p>
 
-                <label for="main-symptom">Síntoma principal</label>
+                <label for="main-symptom">@Lang.T("episode.mainSymptom")</label>
                 <input id="main-symptom" type="text" @bind="mainSymptom"
-                       placeholder="Mareo, palpitaciones, casi-desmayo..." maxlength="200" />
+                       placeholder="@Lang.T("episode.mainSymptom.placeholder")" maxlength="200" />
 
-                <label for="posture">Postura justo antes</label>
+                <label for="posture">@Lang.T("episode.postureBefore")</label>
                 <select id="posture" @bind="postureBefore" class="text-input">
-                    <option value="">— sin especificar —</option>
-                    <option value="Lying">Tumbada</option>
-                    <option value="Sitting">Sentada</option>
-                    <option value="Standing">De pie</option>
-                    <option value="Walking">Caminando</option>
-                    <option value="Shower">En la ducha</option>
-                    <option value="AfterMeal">Después de comer</option>
+                    <option value="">@Lang.T("common.unspecified")</option>
+                    <option value="Lying">@Lang.T("posture.lying")</option>
+                    <option value="Sitting">@Lang.T("posture.sitting")</option>
+                    <option value="Standing">@Lang.T("posture.standing")</option>
+                    <option value="Walking">@Lang.T("posture.walking")</option>
+                    <option value="Shower">@Lang.T("posture.shower")</option>
+                    <option value="AfterMeal">@Lang.T("posture.afterMeal")</option>
                 </select>
 
-                <label for="trigger">Lo que sospechas que lo provocó</label>
+                <label for="trigger">@Lang.T("episode.trigger")</label>
                 <select id="trigger" @bind="triggerSuspected" class="text-input">
-                    <option value="Unknown">No estoy segura</option>
-                    <option value="Heat">Calor</option>
-                    <option value="Dehydration">Deshidratación</option>
-                    <option value="MissedMeal">Saltarme una comida</option>
-                    <option value="Menstrual">Menstruación</option>
-                    <option value="Stress">Estrés</option>
-                    <option value="PoorSleep">Mal sueño</option>
-                    <option value="Exercise">Ejercicio</option>
-                    <option value="Infection">Infección</option>
-                    <option value="LongStanding">Mucho rato de pie</option>
-                    <option value="Alcohol">Alcohol</option>
-                    <option value="LargeMeal">Comida muy grande</option>
+                    <option value="Unknown">@Lang.T("trigger.unknown")</option>
+                    <option value="Heat">@Lang.T("trigger.heat")</option>
+                    <option value="Dehydration">@Lang.T("trigger.dehydration")</option>
+                    <option value="MissedMeal">@Lang.T("trigger.missedMeal")</option>
+                    <option value="Menstrual">@Lang.T("trigger.menstrual")</option>
+                    <option value="Stress">@Lang.T("trigger.stress")</option>
+                    <option value="PoorSleep">@Lang.T("trigger.poorSleep")</option>
+                    <option value="Exercise">@Lang.T("trigger.exercise")</option>
+                    <option value="Infection">@Lang.T("trigger.infection")</option>
+                    <option value="LongStanding">@Lang.T("trigger.longStanding")</option>
+                    <option value="Alcohol">@Lang.T("trigger.alcohol")</option>
+                    <option value="LargeMeal">@Lang.T("trigger.largeMeal")</option>
                 </select>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Mediciones durante (opcional)</p>
+                <p class="card__label">@Lang.T("episode.measure.label")</p>
 
-                <label for="hr">Frecuencia cardíaca (lpm)</label>
+                <label for="hr">@Lang.T("episode.hr")</label>
                 <input id="hr" type="number" min="20" max="250" @bind="hrDuringBpm" />
 
-                <label for="bp">Tensión arterial (sistólica / diastólica)</label>
+                <label for="bp">@Lang.T("episode.bp")</label>
                 <div class="bp-row">
-                    <input type="number" min="50" max="250" @bind="bpSys" placeholder="120" aria-label="Sistólica" />
+                    <input type="number" min="50" max="250" @bind="bpSys" placeholder="120" aria-label="@Lang.T("episode.bp.sys")" />
                     <span class="bp-row__sep" aria-hidden="true">/</span>
-                    <input type="number" min="30" max="180" @bind="bpDia" placeholder="80" aria-label="Diastólica" />
+                    <input type="number" min="30" max="180" @bind="bpDia" placeholder="80" aria-label="@Lang.T("episode.bp.dia")" />
                 </div>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Qué hiciste</p>
+                <p class="card__label">@Lang.T("episode.action.label")</p>
 
-                <label for="action-taken">Acción tomada</label>
+                <label for="action-taken">@Lang.T("episode.action.taken")</label>
                 <input id="action-taken" type="text" @bind="actionTaken"
-                       placeholder="Me tumbé, levanté piernas, bebí agua..." maxlength="500" />
+                       placeholder="@Lang.T("episode.action.placeholder")" maxlength="500" />
 
-                <label for="recovery">Tiempo hasta sentirte mejor (minutos)</label>
+                <label for="recovery">@Lang.T("episode.recovery")</label>
                 <input id="recovery" type="number" min="0" max="1440" @bind="recoveryMinutes" />
 
                 <label class="checkbox-row">
                     <input type="checkbox" @bind="preventedFainting" />
-                    <span>Evité desmayarme gracias a alguna maniobra.</span>
+                    <span>@Lang.T("episode.preventedFainting")</span>
                 </label>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Nota libre</p>
+                <p class="card__label">@Lang.T("episode.note.label")</p>
                 <textarea @bind="note" rows="3" maxlength="1000"
                           class="text-input"
-                          placeholder="Cualquier cosa que quieras recordar."></textarea>
+                          placeholder="@Lang.T("episode.note.placeholder")"></textarea>
             </section>
 
             @if (errorMessage is not null)
@@ -108,22 +107,20 @@
 
             <div class="action-row">
                 <button type="submit" class="btn--primary" disabled="@busy">
-                    <span>@(busy ? "Guardando..." : "Guardar episodio")</span>
+                    <span>@(busy ? Lang.T("saving") : Lang.T("episode.saveBtn"))</span>
                     <span class="arrow" aria-hidden="true">→</span>
                 </button>
                 <a href="/today" class="btn--ghost" style="text-decoration:none;text-align:center;line-height:1.2;display:inline-flex;align-items:center;justify-content:center;">
-                    Cancelar
+                    @Lang.T("cancel")
                 </a>
             </div>
         </EditForm>
     }
     else
     {
-        <p class="eyebrow">Episodio · @FormatTime(saved.CreatedAt)</p>
-        <h1><span class="accent-rule"></span>Guardado.</h1>
-        <p class="lead">
-            Cuando hables con tu médico, lo tendrás aquí. Ya puedes descansar.
-        </p>
+        <p class="eyebrow">@Lang.T("episode.saved.eyebrow") · @FormatTime(saved.CreatedAt)</p>
+        <h1><span class="accent-rule"></span>@Lang.T("episode.saved.title")</h1>
+        <p class="lead">@Lang.T("episode.saved.lead")</p>
 
         <EmergencyTriage />
 
@@ -131,7 +128,7 @@
 
         <div class="action-row">
             <a href="/today" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;">
-                <span>Volver a hoy</span>
+                <span>@Lang.T("common.backToToday")</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </a>
         </div>
@@ -139,12 +136,6 @@
 </div>
 
 @code {
-    private static readonly string[] MonthsEs =
-    {
-        "enero", "febrero", "marzo", "abril", "mayo", "junio",
-        "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
-    };
-
     private DateTime startTimeLocal = DateTime.Now;
     private int? durationMinutes;
     private string mainSymptom = "";
@@ -164,11 +155,16 @@
 
     protected override void OnInitialized()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
         }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task SaveAsync()
     {
@@ -193,7 +189,7 @@
         }
         catch (HttpRequestException)
         {
-            errorMessage = "No se ha podido guardar el episodio. Inténtalo de nuevo.";
+            errorMessage = Lang.T("episode.saveError");
         }
         finally
         {
@@ -201,10 +197,16 @@
         }
     }
 
-    private static string FormatToday()
+    private string FormatToday()
     {
         var d = DateTime.Now;
-        return $"{d.Day} de {MonthsEs[d.Month - 1]}";
+        var months = Lang.Current switch
+        {
+            "fr" => new[] { "janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre" },
+            "en" => new[] { "January","February","March","April","May","June","July","August","September","October","November","December" },
+            _    => new[] { "enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre" },
+        };
+        return Lang.Current == "en" ? $"{months[d.Month - 1]} {d.Day}" : $"{d.Day} {(Lang.Current == "fr" ? "" : "de ")}{months[d.Month - 1]}";
     }
 
     private static string FormatTime(DateTimeOffset dt) =>

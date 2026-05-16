@@ -1,6 +1,9 @@
 @* Reusable 0-10 nullable slider for symptom intensity. Null = "not recorded";
    never 0. Has a clear button to reset to null. *@
 
+@inject LanguageService Lang
+@implements IDisposable
+
 <div class="symptom-scale">
     <div class="symptom-scale__top">
         <label class="symptom-scale__label">@Label</label>
@@ -14,10 +17,10 @@
            class="symptom-scale__slider"
            aria-label="@Label" />
     <div class="symptom-scale__legend">
-        <span>nada</span>
+        <span>@Lang.T("scale.none")</span>
         <button type="button" class="symptom-scale__clear" @onclick="Clear"
-                disabled="@(!Value.HasValue)">borrar</button>
-        <span>peor</span>
+                disabled="@(!Value.HasValue)">@Lang.T("scale.clear")</button>
+        <span>@Lang.T("scale.worst")</span>
     </div>
 </div>
 
@@ -25,6 +28,15 @@
     [Parameter] public string Label { get; set; } = "";
     [Parameter] public int? Value { get; set; }
     [Parameter] public EventCallback<int?> ValueChanged { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task OnInput(ChangeEventArgs e)
     {

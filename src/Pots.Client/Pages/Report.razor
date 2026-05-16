@@ -3,79 +3,74 @@
 @inject ReportClient ReportClient
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Informe — POTS</PageTitle>
+<PageTitle>@Lang.T("report.pageTitle")</PageTitle>
 
 <div class="shell flow stagger no-print">
-    <p class="eyebrow">Informe para tu médico</p>
-    <h1><span class="accent-rule"></span>Listo para llevar<br />a la consulta.</h1>
-    <p class="lead">
-        Un resumen de tu seguimiento. Imprime como PDF desde el navegador o
-        descarga el CSV.
-    </p>
+    <p class="eyebrow">@Lang.T("report.eyebrow")</p>
+    <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("report.title"))</h1>
+    <p class="lead">@Lang.T("report.lead")</p>
 
     <section class="card flow">
-        <p class="card__label">Rango</p>
+        <p class="card__label">@Lang.T("report.range.label")</p>
         <div class="action-row">
-            <button class="@(days == 7 ? "btn--primary" : "btn--ghost")" @onclick="() => Reload(7)">Última semana</button>
-            <button class="@(days == 30 ? "btn--primary" : "btn--ghost")" @onclick="() => Reload(30)">Últimos 30 días</button>
-            <button class="@(days == 90 ? "btn--primary" : "btn--ghost")" @onclick="() => Reload(90)">Últimos 90 días</button>
+            <button class="@(days == 7 ? "btn--primary" : "btn--ghost")" @onclick="() => Reload(7)">@Lang.T("report.range.week")</button>
+            <button class="@(days == 30 ? "btn--primary" : "btn--ghost")" @onclick="() => Reload(30)">@Lang.T("report.range.30d")</button>
+            <button class="@(days == 90 ? "btn--primary" : "btn--ghost")" @onclick="() => Reload(90)">@Lang.T("report.range.90d")</button>
         </div>
     </section>
 </div>
 
 @if (loading)
 {
-    <div class="shell"><p>Cargando informe...</p></div>
+    <div class="shell"><p>@Lang.T("report.loading")</p></div>
 }
 else if (report is null)
 {
-    <div class="shell"><p class="muted">No se pudo cargar el informe.</p></div>
+    <div class="shell"><p class="muted">@Lang.T("report.loadError")</p></div>
 }
 else
 {
     <article class="print-sheet">
         <header class="print-sheet__head">
-            <h2 class="print-sheet__title">POTS · Resumen de seguimiento</h2>
+            <h2 class="print-sheet__title">@Lang.T("report.sheet.title")</h2>
             <p class="print-sheet__meta">
-                Paciente: <strong>@report.PatientName</strong><br />
-                Periodo: @report.From.ToLocalTime().ToString("yyyy-MM-dd") → @report.To.ToLocalTime().ToString("yyyy-MM-dd")<br />
-                Generado: @DateTime.Now.ToString("yyyy-MM-dd HH:mm")
+                @Lang.T("report.sheet.patient") <strong>@report.PatientName</strong><br />
+                @Lang.T("report.sheet.period") @report.From.ToLocalTime().ToString("yyyy-MM-dd") → @report.To.ToLocalTime().ToString("yyyy-MM-dd")<br />
+                @Lang.T("report.sheet.generated") @DateTime.Now.ToString("yyyy-MM-dd HH:mm")
             </p>
-            <p class="print-sheet__disclaimer">
-                Esto es una herramienta de seguimiento auto-registrado, no un
-                informe clínico. Las observaciones de patrones se presentan
-                como <em>asociaciones</em>, no como diagnósticos.
-            </p>
+            <p class="print-sheet__disclaimer">@Lang.T("report.sheet.disclaimer")</p>
         </header>
 
         <section class="print-sheet__section">
-            <h3>Días según el paciente</h3>
+            <h3>@Lang.T("report.days.title")</h3>
             <table>
-                <tr><th>Bien (verde)</th><td>@report.GreenCount</td></tr>
-                <tr><th>Regular (naranja)</th><td>@report.OrangeCount</td></tr>
-                <tr><th>Mal (rojo)</th><td>@report.RedCount</td></tr>
-                <tr><th>Episodios registrados</th><td>@report.EpisodeCount</td></tr>
-                <tr><th>Episodios con desmayo evitado por maniobras</th><td>@report.EpisodesPreventedFainting</td></tr>
+                <tr><th>@Lang.T("report.days.green")</th><td>@report.GreenCount</td></tr>
+                <tr><th>@Lang.T("report.days.orange")</th><td>@report.OrangeCount</td></tr>
+                <tr><th>@Lang.T("report.days.red")</th><td>@report.RedCount</td></tr>
+                <tr><th>@Lang.T("report.days.episodes")</th><td>@report.EpisodeCount</td></tr>
+                <tr><th>@Lang.T("report.days.prevented")</th><td>@report.EpisodesPreventedFainting</td></tr>
             </table>
         </section>
 
         <section class="print-sheet__section">
-            <h3>Frecuencia cardíaca y tensión arterial (medias)</h3>
+            <h3>@Lang.T("report.hrBp.title")</h3>
             <table>
-                <tr><th>HR en reposo</th><td>@FmtBpm(report.AvgRestingHrBpm)</td></tr>
-                <tr><th>HR de pie (mejor medida disponible)</th><td>@FmtBpm(report.AvgStandingHrBpm)</td></tr>
-                <tr><th>BP tumbada (sis/dia)</th><td>@FmtBp(report.AvgBpLyingSys, report.AvgBpLyingDia)</td></tr>
-                <tr><th>BP sentada (sis/dia)</th><td>@FmtBp(report.AvgBpSittingSys, report.AvgBpSittingDia)</td></tr>
-                <tr><th>BP de pie (sis/dia)</th><td>@FmtBp(report.AvgBpStandingSys, report.AvgBpStandingDia)</td></tr>
-                <tr><th>HR máxima durante episodio</th><td>@FmtBpm(report.MaxHrInEpisodeBpm.HasValue ? (double)report.MaxHrInEpisodeBpm.Value : null)</td></tr>
+                <tr><th>@Lang.T("report.hrBp.hrResting")</th><td>@FmtBpm(report.AvgRestingHrBpm)</td></tr>
+                <tr><th>@Lang.T("report.hrBp.hrStanding")</th><td>@FmtBpm(report.AvgStandingHrBpm)</td></tr>
+                <tr><th>@Lang.T("report.hrBp.bpLying")</th><td>@FmtBp(report.AvgBpLyingSys, report.AvgBpLyingDia)</td></tr>
+                <tr><th>@Lang.T("report.hrBp.bpSitting")</th><td>@FmtBp(report.AvgBpSittingSys, report.AvgBpSittingDia)</td></tr>
+                <tr><th>@Lang.T("report.hrBp.bpStanding")</th><td>@FmtBp(report.AvgBpStandingSys, report.AvgBpStandingDia)</td></tr>
+                <tr><th>@Lang.T("report.hrBp.hrMaxEp")</th><td>@FmtBpm(report.MaxHrInEpisodeBpm.HasValue ? (double)report.MaxHrInEpisodeBpm.Value : null)</td></tr>
             </table>
         </section>
 
         @if (report.TopSymptoms.Count > 0)
         {
             <section class="print-sheet__section">
-                <h3>Síntomas más prominentes (media 0-10)</h3>
+                <h3>@Lang.T("report.topSymptoms.title")</h3>
                 <table>
                     @foreach (var s in report.TopSymptoms)
                     {
@@ -88,31 +83,31 @@ else
         @if (report.TopTriggers.Count > 0)
         {
             <section class="print-sheet__section">
-                <h3>Desencadenantes sospechosos (anotados por la paciente)</h3>
+                <h3>@Lang.T("report.topTriggers.title")</h3>
                 <table>
                     @foreach (var t in report.TopTriggers)
                     {
-                        <tr><th>@TriggerEs(t.Trigger)</th><td>@t.Count episodios</td></tr>
+                        <tr><th>@TriggerLabel(t.Trigger)</th><td>@t.Count @Lang.T("report.topTriggers.episodes")</td></tr>
                     }
                 </table>
             </section>
         }
 
         <section class="print-sheet__section">
-            <h3>Adherencia a las medidas no-farmacológicas</h3>
+            <h3>@Lang.T("report.adherence.title")</h3>
             <table>
-                <tr><th>Hidratación (media ml/día)</th><td>@FmtMl(report.AvgDailyFluidMl)</td></tr>
-                <tr><th>Compresión (% días)</th><td>@FmtPct(report.CompressionAdherencePct)</td></tr>
-                <tr><th>Ejercicio (% días con alguna sesión)</th><td>@FmtPct(report.ExerciseAdherencePct)</td></tr>
-                <tr><th>Medicación según prescripción (% días)</th><td>@FmtPct(report.MedicationAdherencePct)</td></tr>
+                <tr><th>@Lang.T("report.adherence.hydration")</th><td>@FmtMl(report.AvgDailyFluidMl)</td></tr>
+                <tr><th>@Lang.T("report.adherence.compression")</th><td>@FmtPct(report.CompressionAdherencePct)</td></tr>
+                <tr><th>@Lang.T("report.adherence.exercise")</th><td>@FmtPct(report.ExerciseAdherencePct)</td></tr>
+                <tr><th>@Lang.T("report.adherence.medication")</th><td>@FmtPct(report.MedicationAdherencePct)</td></tr>
             </table>
         </section>
 
         <section class="print-sheet__section">
-            <h3>Tolerancia al ejercicio</h3>
+            <h3>@Lang.T("report.exTolerance.title")</h3>
             <table>
-                <tr><th>Sesiones de ejercicio registradas</th><td>@report.ExerciseSessions</td></tr>
-                <tr><th>Sesiones con síntomas post-ejercicio anotados</th>
+                <tr><th>@Lang.T("report.exTolerance.sessions")</th><td>@report.ExerciseSessions</td></tr>
+                <tr><th>@Lang.T("report.exTolerance.withPost")</th>
                     <td>@report.ExerciseSessionsWithPostSymptoms
                         @if (report.ExerciseSessions > 0)
                         {
@@ -120,16 +115,13 @@ else
                         }
                     </td></tr>
             </table>
-            <p class="print-sheet__disclaimer">
-                Un % alto sugiere que la paciente está sobrepasando su umbral
-                de tolerancia ese tipo de día. Asociación, no causalidad.
-            </p>
+            <p class="print-sheet__disclaimer">@Lang.T("report.exTolerance.disclaimer")</p>
         </section>
 
         @if (report.PatientNotes.Count > 0)
         {
             <section class="print-sheet__section">
-                <h3>Notas de la paciente</h3>
+                <h3>@Lang.T("report.notes.title")</h3>
                 <ul class="print-sheet__notes">
                     @foreach (var n in report.PatientNotes)
                     {
@@ -144,13 +136,13 @@ else
         <hr class="divider divider--ornament" aria-hidden="true" />
         <div class="action-row">
             <button class="btn--primary" @onclick="PrintAsync">
-                <span>Imprimir / guardar como PDF</span>
+                <span>@Lang.T("report.print")</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </button>
             <a class="btn--ghost" href="@CsvDownloadUrl()" target="_blank" rel="noopener" style="text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;">
-                Descargar CSV
+                @Lang.T("report.csv")
             </a>
-            <a href="/today" class="btn--quiet" style="text-decoration:none;align-self:center;">Volver</a>
+            <a href="/today" class="btn--quiet" style="text-decoration:none;align-self:center;">@Lang.T("report.back")</a>
         </div>
     </div>
 }
@@ -162,6 +154,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
@@ -169,6 +162,10 @@ else
         }
         await Reload(30);
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task Reload(int newDays)
     {
@@ -207,22 +204,22 @@ else
     private static string FmtMl(double? v) => v.HasValue ? $"{v.Value:0} ml" : "—";
     private static string FmtPct(double? v) => v.HasValue ? $"{v.Value:0.0} %" : "—";
 
-    private static readonly Dictionary<string, string> TriggerLabels = new()
+    // Localized short label for a backend trigger enum. Falls back to the raw
+    // enum name if no translation key matches.
+    private string TriggerLabel(string trigger) => trigger switch
     {
-        ["Unknown"] = "Desconocido",
-        ["Heat"] = "Calor",
-        ["Dehydration"] = "Deshidratación",
-        ["MissedMeal"] = "Saltar comida",
-        ["Menstrual"] = "Menstruación",
-        ["Stress"] = "Estrés",
-        ["PoorSleep"] = "Mal sueño",
-        ["Exercise"] = "Ejercicio",
-        ["Infection"] = "Infección",
-        ["LongStanding"] = "Mucho de pie",
-        ["Alcohol"] = "Alcohol",
-        ["LargeMeal"] = "Comida grande",
+        "Unknown" => Lang.T("trigger.short.unknown"),
+        "Heat" => Lang.T("trigger.heat"),
+        "Dehydration" => Lang.T("trigger.dehydration"),
+        "MissedMeal" => Lang.T("trigger.short.missedMeal"),
+        "Menstrual" => Lang.T("trigger.menstrual"),
+        "Stress" => Lang.T("trigger.stress"),
+        "PoorSleep" => Lang.T("trigger.poorSleep"),
+        "Exercise" => Lang.T("trigger.exercise"),
+        "Infection" => Lang.T("trigger.infection"),
+        "LongStanding" => Lang.T("trigger.short.longStanding"),
+        "Alcohol" => Lang.T("trigger.alcohol"),
+        "LargeMeal" => Lang.T("trigger.short.largeMeal"),
+        _ => trigger,
     };
-
-    private static string TriggerEs(string trigger) =>
-        TriggerLabels.TryGetValue(trigger, out var es) ? es : trigger;
 }

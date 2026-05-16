@@ -2,93 +2,92 @@
 @inject AuthClient Auth
 @inject SymptomClient SymptomClient
 @inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
 
-<PageTitle>Síntomas — POTS</PageTitle>
+<PageTitle>@Lang.T("symptoms.pageTitle")</PageTitle>
 
 <div class="shell flow stagger">
-    <p class="eyebrow">Registro · síntomas</p>
+    <p class="eyebrow">@Lang.T("symptoms.eyebrow")</p>
 
     @if (saved)
     {
-        <h1><span class="accent-rule"></span>Anotado.</h1>
-        <p class="lead">Gracias por dejar constancia. Te lo guardamos para el próximo informe.</p>
+        <h1><span class="accent-rule"></span>@Lang.T("symptoms.saved.title")</h1>
+        <p class="lead">@Lang.T("symptoms.saved.lead")</p>
         <div class="action-row">
             <a href="/today" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;">
-                <span>Volver a hoy</span>
+                <span>@Lang.T("common.backToToday")</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </a>
-            <button class="btn--ghost" @onclick="Reset">Registrar otra ronda</button>
+            <button class="btn--ghost" @onclick="Reset">@Lang.T("symptoms.saved.again")</button>
         </div>
     }
     else
     {
-        <h1><span class="accent-rule"></span>¿Cómo estás de cada cosa?</h1>
-        <p class="lead">
-            Solo lo que te apetezca rellenar. 0 es nada, 10 es lo peor que has sentido nunca.
-            Deja en blanco lo que no aplica.
-        </p>
+        <h1><span class="accent-rule"></span>@Lang.T("symptoms.title")</h1>
+        <p class="lead">@Lang.T("symptoms.lead")</p>
 
         <EditForm Model="this" OnValidSubmit="SaveAsync" class="flow">
 
             <section class="card flow">
-                <p class="card__label">Cardiovascular y postura</p>
-                <SymptomScale Label="Mareo / aturdimiento" @bind-Value="data.Dizziness" />
-                <SymptomScale Label="Palpitaciones" @bind-Value="data.Palpitations" />
-                <SymptomScale Label="Sensación de taquicardia" @bind-Value="data.TachycardiaSensation" />
-                <SymptomScale Label="Molestia en el pecho" @bind-Value="data.ChestDiscomfort" />
-                <SymptomScale Label="Falta de aire" @bind-Value="data.ShortnessOfBreath" />
-                <SymptomScale Label="Casi-desmayo" @bind-Value="data.NearFainting" />
-                <SymptomScale Label="Sangre acumulada en piernas (pies morados, piernas pesadas)" @bind-Value="data.BloodPooling" />
+                <p class="card__label">@Lang.T("symptoms.cardio.label")</p>
+                <SymptomScale Label="@Lang.T("symptoms.cardio.dizziness")" @bind-Value="data.Dizziness" />
+                <SymptomScale Label="@Lang.T("symptoms.cardio.palpitations")" @bind-Value="data.Palpitations" />
+                <SymptomScale Label="@Lang.T("symptoms.cardio.tachy")" @bind-Value="data.TachycardiaSensation" />
+                <SymptomScale Label="@Lang.T("symptoms.cardio.chest")" @bind-Value="data.ChestDiscomfort" />
+                <SymptomScale Label="@Lang.T("symptoms.cardio.breath")" @bind-Value="data.ShortnessOfBreath" />
+                <SymptomScale Label="@Lang.T("symptoms.cardio.nearFainting")" @bind-Value="data.NearFainting" />
+                <SymptomScale Label="@Lang.T("symptoms.cardio.pooling")" @bind-Value="data.BloodPooling" />
                 <label class="checkbox-row">
                     <input type="checkbox" @bind="data.FaintingEpisode" />
-                    <span>Hubo desmayo (pérdida de consciencia).</span>
+                    <span>@Lang.T("symptoms.cardio.fainted")</span>
                 </label>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Neurológico y cognitivo</p>
-                <SymptomScale Label="Niebla mental" @bind-Value="data.BrainFog" />
-                <SymptomScale Label="Dolor de cabeza" @bind-Value="data.Headache" />
-                <SymptomScale Label="Alteraciones visuales" @bind-Value="data.VisualDisturbance" />
-                <SymptomScale Label="Temblor" @bind-Value="data.Tremor" />
-                <SymptomScale Label="Debilidad" @bind-Value="data.Weakness" />
-                <SymptomScale Label="Fatiga" @bind-Value="data.Fatigue" />
-                <SymptomScale Label="Sueño / somnolencia" @bind-Value="data.Sleepiness" />
+                <p class="card__label">@Lang.T("symptoms.neuro.label")</p>
+                <SymptomScale Label="@Lang.T("symptoms.neuro.brainFog")" @bind-Value="data.BrainFog" />
+                <SymptomScale Label="@Lang.T("symptoms.neuro.headache")" @bind-Value="data.Headache" />
+                <SymptomScale Label="@Lang.T("symptoms.neuro.visual")" @bind-Value="data.VisualDisturbance" />
+                <SymptomScale Label="@Lang.T("symptoms.neuro.tremor")" @bind-Value="data.Tremor" />
+                <SymptomScale Label="@Lang.T("symptoms.neuro.weakness")" @bind-Value="data.Weakness" />
+                <SymptomScale Label="@Lang.T("symptoms.neuro.fatigue")" @bind-Value="data.Fatigue" />
+                <SymptomScale Label="@Lang.T("symptoms.neuro.sleepiness")" @bind-Value="data.Sleepiness" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Digestivo</p>
-                <SymptomScale Label="Náuseas" @bind-Value="data.Nausea" />
-                <SymptomScale Label="Dolor abdominal" @bind-Value="data.AbdominalPain" />
-                <SymptomScale Label="Hinchazón" @bind-Value="data.Bloating" />
-                <SymptomScale Label="Apetito (0 nada, 10 muy alto)" @bind-Value="data.AppetiteLevel" />
+                <p class="card__label">@Lang.T("symptoms.gi.label")</p>
+                <SymptomScale Label="@Lang.T("symptoms.gi.nausea")" @bind-Value="data.Nausea" />
+                <SymptomScale Label="@Lang.T("symptoms.gi.abdominal")" @bind-Value="data.AbdominalPain" />
+                <SymptomScale Label="@Lang.T("symptoms.gi.bloating")" @bind-Value="data.Bloating" />
+                <SymptomScale Label="@Lang.T("symptoms.gi.appetite")" @bind-Value="data.AppetiteLevel" />
 
-                <label for="bowel">Tránsito intestinal</label>
+                <label for="bowel">@Lang.T("symptoms.gi.bowel")</label>
                 <select id="bowel" class="text-input" @bind="data.Bowel">
-                    <option value="">— sin especificar —</option>
-                    <option value="Normal">Normal</option>
-                    <option value="Diarrhea">Diarrea</option>
-                    <option value="Constipation">Estreñimiento</option>
-                    <option value="Both">Ambos (alternancia)</option>
+                    <option value="">@Lang.T("common.unspecified")</option>
+                    <option value="Normal">@Lang.T("symptoms.gi.bowel.normal")</option>
+                    <option value="Diarrhea">@Lang.T("symptoms.gi.bowel.diarrhea")</option>
+                    <option value="Constipation">@Lang.T("symptoms.gi.bowel.constipation")</option>
+                    <option value="Both">@Lang.T("symptoms.gi.bowel.both")</option>
                 </select>
             </section>
 
             <section class="card flow">
-                <p class="card__label">Temperatura y autonómico</p>
-                <SymptomScale Label="Intolerancia al calor" @bind-Value="data.HeatIntolerance" />
-                <SymptomScale Label="Sudoración" @bind-Value="data.Sweating" />
-                <SymptomScale Label="Escalofríos" @bind-Value="data.Chills" />
-                <SymptomScale Label="Sofocos / rubor" @bind-Value="data.Flushing" />
-                <SymptomScale Label="Extremidades frías" @bind-Value="data.ColdExtremities" />
+                <p class="card__label">@Lang.T("symptoms.auto.label")</p>
+                <SymptomScale Label="@Lang.T("symptoms.auto.heat")" @bind-Value="data.HeatIntolerance" />
+                <SymptomScale Label="@Lang.T("symptoms.auto.sweating")" @bind-Value="data.Sweating" />
+                <SymptomScale Label="@Lang.T("symptoms.auto.chills")" @bind-Value="data.Chills" />
+                <SymptomScale Label="@Lang.T("symptoms.auto.flushing")" @bind-Value="data.Flushing" />
+                <SymptomScale Label="@Lang.T("symptoms.auto.cold")" @bind-Value="data.ColdExtremities" />
             </section>
 
             <section class="card flow">
-                <p class="card__label">Emocional y funcional</p>
-                <SymptomScale Label="Ansiedad" @bind-Value="data.Anxiety" />
-                <SymptomScale Label="Estado de ánimo (0 muy mal, 10 muy bien)" @bind-Value="data.Mood" />
-                <SymptomScale Label="Capacidad para estudiar / trabajar" @bind-Value="data.AbilityToWork" />
-                <SymptomScale Label="Capacidad para caminar / estar de pie" @bind-Value="data.AbilityToWalk" />
-                <SymptomScale Label="Tolerancia social" @bind-Value="data.SocialTolerance" />
+                <p class="card__label">@Lang.T("symptoms.func.label")</p>
+                <SymptomScale Label="@Lang.T("symptoms.func.anxiety")" @bind-Value="data.Anxiety" />
+                <SymptomScale Label="@Lang.T("symptoms.func.mood")" @bind-Value="data.Mood" />
+                <SymptomScale Label="@Lang.T("symptoms.func.work")" @bind-Value="data.AbilityToWork" />
+                <SymptomScale Label="@Lang.T("symptoms.func.walk")" @bind-Value="data.AbilityToWalk" />
+                <SymptomScale Label="@Lang.T("symptoms.func.social")" @bind-Value="data.SocialTolerance" />
             </section>
 
             @if (errorMessage is not null)
@@ -98,11 +97,11 @@
 
             <div class="action-row">
                 <button type="submit" class="btn--primary" disabled="@busy">
-                    <span>@(busy ? "Guardando..." : "Guardar")</span>
+                    <span>@(busy ? Lang.T("saving") : Lang.T("save"))</span>
                     <span class="arrow" aria-hidden="true">→</span>
                 </button>
                 <a href="/today" class="btn--ghost" style="text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;">
-                    Cancelar
+                    @Lang.T("cancel")
                 </a>
             </div>
         </EditForm>
@@ -117,11 +116,16 @@
 
     protected override void OnInitialized()
     {
+        Lang.LanguageChanged += OnLangChanged;
         if (string.IsNullOrEmpty(Auth.CachedJwt))
         {
             Nav.NavigateTo("/login", replace: true);
         }
     }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
     private async Task SaveAsync()
     {
@@ -166,7 +170,7 @@
         }
         catch (HttpRequestException)
         {
-            errorMessage = "No se ha podido guardar. Inténtalo de nuevo.";
+            errorMessage = Lang.T("common.saveError");
         }
         finally { busy = false; }
     }
