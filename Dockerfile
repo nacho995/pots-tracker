@@ -7,21 +7,17 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-# Cache restore by copying csproj/sln files first.
-COPY Pots.sln .
+# Cache restore by copying csproj files first. Restoring the Pots.Api csproj
+# walks its transitive ProjectReferences (Infrastructure → Domain, Shared),
+# so we don't need the .sln, the WASM client, or the test projects in the image.
 COPY src/Pots.Api/Pots.Api.csproj         src/Pots.Api/
 COPY src/Pots.Domain/Pots.Domain.csproj   src/Pots.Domain/
 COPY src/Pots.Infrastructure/Pots.Infrastructure.csproj src/Pots.Infrastructure/
 COPY src/Pots.Shared/Pots.Shared.csproj   src/Pots.Shared/
-# Client + Tests csprojs referenced by the .sln (restore would otherwise miss them).
-COPY src/Pots.Client/Pots.Client.csproj   src/Pots.Client/
-COPY tests/Pots.Domain.Tests/Pots.Domain.Tests.csproj         tests/Pots.Domain.Tests/
-COPY tests/Pots.Infrastructure.Tests/Pots.Infrastructure.Tests.csproj tests/Pots.Infrastructure.Tests/
-COPY tests/Pots.Api.Tests/Pots.Api.Tests.csproj               tests/Pots.Api.Tests/
 
 RUN dotnet restore src/Pots.Api/Pots.Api.csproj
 
-# Bring API + shared sources only — no client code in the image.
+# Bring API + shared sources only.
 COPY src/Pots.Api/         src/Pots.Api/
 COPY src/Pots.Domain/      src/Pots.Domain/
 COPY src/Pots.Infrastructure/ src/Pots.Infrastructure/
