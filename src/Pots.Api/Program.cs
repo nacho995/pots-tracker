@@ -55,8 +55,8 @@ builder.Services.AddScoped<AuthService>();
 var emailProvider = builder.Configuration["Email:Provider"]
     ?? (builder.Environment.IsDevelopment() ? "Console" : null)
     ?? throw new InvalidOperationException(
-        "Email:Provider is required outside Development. Set it to 'Brevo' (+ Brevo:ApiKey " +
-        "+ Brevo:SenderEmail), 'Resend' (+ Resend:ApiKey + Resend:FromAddress), or 'Console'.");
+        "Email:Provider is required outside Development. Valid values: 'Smtp' (+ Smtp:Host/Port/Username/Password/FromEmail), " +
+        "'Brevo' (+ Brevo:ApiKey + Brevo:SenderEmail), 'Resend' (+ Resend:ApiKey + Resend:FromAddress), or 'Console'.");
 
 switch (emailProvider.ToLowerInvariant())
 {
@@ -68,6 +68,12 @@ switch (emailProvider.ToLowerInvariant())
             ?? throw new InvalidOperationException("Brevo section missing.");
         builder.Services.AddSingleton(brevo);
         builder.Services.AddHttpClient<IEmailSender, BrevoEmailSender>();
+        break;
+    case "smtp":
+        var smtp = builder.Configuration.GetSection("Smtp").Get<SmtpOptions>()
+            ?? throw new InvalidOperationException("Smtp section missing.");
+        builder.Services.AddSingleton(smtp);
+        builder.Services.AddSingleton<IEmailSender, SmtpEmailSender>();
         break;
     case "resend":
         var resend = builder.Configuration.GetSection("Resend").Get<ResendOptions>()

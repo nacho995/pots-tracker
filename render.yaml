@@ -23,7 +23,7 @@ services:
       - key: ASPNETCORE_URLS
         value: http://+:8080
       - key: Email__Provider
-        value: Brevo
+        value: Smtp
       - key: Jwt__Issuer
         value: pots-tracker
       - key: Jwt__Audience
@@ -41,10 +41,16 @@ services:
       # Neon pooled connection string for the pots_app role (RLS-bound).
       - key: ConnectionStrings__Pots
         sync: false
-      # Brevo HTTP API key + verified single-sender address (free tier 300/day).
-      - key: Brevo__ApiKey
+      # Gmail SMTP via an App Password (2FA-gated). Free ~500 emails/day.
+      - key: Smtp__Host
+        value: smtp.gmail.com
+      - key: Smtp__Port
+        value: "587"
+      - key: Smtp__Username
         sync: false
-      - key: Brevo__SenderEmail
+      - key: Smtp__Password
         sync: false
-      - key: Brevo__SenderName
+      - key: Smtp__FromEmail
+        sync: false
+      - key: Smtp__FromName
         value: POTS
