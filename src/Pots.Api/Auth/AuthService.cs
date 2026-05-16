@@ -77,24 +77,31 @@ public sealed class AuthService
         // or Referer headers. The client-side verify page reads window.location.hash
         // and POSTs to /auth/verify with the JSON body.
         var link = $"{_jwt.MagicLinkBaseUrl.TrimEnd('/')}/login/verify#token={Uri.EscapeDataString(raw)}";
-        try
+        var subject = "Tu enlace de inicio de sesión";
+        var body = $"Pulsa este enlace para entrar. Expira en 15 minutos:\n{link}";
+
+        // Fire-and-forget the email send. Gmail SMTP from Render's free tier
+        // routinely takes 10-120s for a single send; awaiting it inline makes
+        // the user stare at a blank screen for two minutes. The token is
+        // already persisted, so the worst case if the send fails is that the
+        // user re-requests and we generate a fresh token.
+        //
+        // Use CancellationToken.None: the request's ct is cancelled the moment
+        // we return the response, which would tear down our SMTP send.
+        // Resolve sender from the root provider — DI scope dies with the request.
+        var sender = _emailSender;
+        var logger = _logger;
+        _ = Task.Run(async () =>
         {
-            await _emailSender.SendAsync(
-                normalizedEmail,
-                "Tu enlace de inicio de sesión",
-                $"Pulsa este enlace para entrar. Expira en 15 minutos:\n{link}",
-                ct);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TimeoutException or InvalidOperationException)
-        {
-            // Email transport failure (provider 4xx/5xx, network, timeout).
-            // We deliberately swallow so the endpoint can keep its opaque
-            // response: leaking "send failed for this email" gives an attacker
-            // a partial existence oracle. The token row remains in the DB;
-            // an operator who fixes the provider can re-send manually, and
-            // the next user-initiated attempt invalidates this token's siblings.
-            _logger.LogError(ex, "Failed to send magic link to {Email}", normalizedEmail);
-        }
+            try
+            {
+                await sender.SendAsync(normalizedEmail, subject, body, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send magic link to {Email}", normalizedEmail);
+            }
+        });
     }
 
     public async Task<string?> VerifyAsync(string? rawToken, CancellationToken ct)
