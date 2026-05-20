@@ -90,7 +90,13 @@
         {
             var latest = todayHistory[0];
             <section class="card flow" aria-live="polite">
-                <p class="card__label">@Lang.T("shared.dashboard.latest") · @FormatTime(latest.CreatedAt)</p>
+                <p class="card__label">
+                    @Lang.T("shared.dashboard.latest") · @FormatTime(latest.CreatedAt)
+                    @if (!string.IsNullOrEmpty(latest.RecorderName))
+                    {
+                        <span> · @string.Format(Lang.T("status.recordedBy"), latest.RecorderName)</span>
+                    }
+                </p>
                 <h2>
                     <span class="status-dot status-dot--@(latest.Status.ToLowerInvariant())"></span>
                     @StatusLabel(latest.Status)
@@ -124,7 +130,13 @@
                             <div class="status-history__row">
                                 <span class="status-dot status-dot--@(h.Status.ToLowerInvariant())"></span>
                                 <span class="status-history__time tabular">@FormatTime(h.CreatedAt)</span>
-                                <span class="status-history__label">@StatusLabel(h.Status)</span>
+                                <span class="status-history__label">
+                                    @StatusLabel(h.Status)
+                                    @if (!string.IsNullOrEmpty(h.RecorderName))
+                                    {
+                                        <small class="status-history__by"> · @string.Format(Lang.T("status.recordedBy"), h.RecorderName)</small>
+                                    }
+                                </span>
                             </div>
                         </li>
                     }

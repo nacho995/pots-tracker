@@ -35,6 +35,7 @@ public static class PatientEndpoints
 
     private static async Task<IResult> CreateMyPatientAsync(
         [FromBody] CreatePatientDto dto,
+        HttpContext http,
         PotsDbContext db,
         IUserContext ctx,
         CancellationToken cancellationToken)
@@ -45,6 +46,30 @@ public static class PatientEndpoints
         var existing = await db.Patients.FirstOrDefaultAsync(p => p.OwnerUserId == userId, cancellationToken);
         if (existing is not null)
             return Results.Conflict(new { code = "patient.already_exists" });
+
+        // Phase 6 trap-close: refuse to create a Patient for a user who is
+        // already an active caregiver on someone else's patient. Pre-Phase-6
+        // the /profile and /welcome flows let a caregiver accidentally
+        // create their own Patient by typing their display name; users got
+        // stuck as both, the routing prioritised /today, and they never
+        // reached the shared dashboard they were invited to. Caregivers
+        // who genuinely also have POTS go through an explicit "I also have
+        // POTS" confirmation that sends `?confirmAlsoPatient=true`, which
+        // re-opens this path.
+        var hasActiveGrant = await db.PatientGrants
+            .AnyAsync(g => g.GranteeUserId == userId && g.RevokedAt == null, cancellationToken);
+        if (hasActiveGrant)
+        {
+            var confirm = http.Request.Query["confirmAlsoPatient"].FirstOrDefault();
+            if (!string.Equals(confirm, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.Conflict(new
+                {
+                    code = "patient.caregiver_first",
+                    message = "You're already a caregiver. Confirm explicitly that you also have POTS."
+                });
+            }
+        }
 
         Patient patient;
         try { patient = Patient.Create(userId, dto.Name); }

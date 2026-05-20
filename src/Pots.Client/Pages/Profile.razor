@@ -1,9 +1,19 @@
 @page "/profile"
 @inject AuthClient Auth
+@inject AccountClient AccountClient
 @inject PatientClient PatientClient
+@inject RoleContextService Roles
 @inject NavigationManager Nav
 @inject LanguageService Lang
 @implements IDisposable
+
+@* Phase 6 — /profile is now USER-ACCOUNT first.
+   Every user has a name+email (Tu cuenta section).
+   Patients additionally get a "Tu perfil POTS" section with permissions+notes.
+   Caregivers see their account + a link to shared dashboards, NOT a CTA to
+   create a Patient (the pre-Phase-6 trap that turned caregivers into
+   accidental patients). The "I also have POTS" path still exists but is
+   gated by an explicit confirmation. *@
 
 <PageTitle>POTS</PageTitle>
 
@@ -13,88 +23,207 @@
         <p class="eyebrow">@Lang.T("loading")</p>
         <h1><span class="accent-rule"></span>@Lang.T("moment")</h1>
     }
-    else if (patient is null)
+    else if (account is null)
     {
-        <p class="eyebrow">@Lang.T("profile.welcome.eyebrow")</p>
-        <h1><span class="accent-rule"></span>@Lang.T("profile.welcome.title")</h1>
-        <p class="lead">@Lang.T("profile.welcome.lead")</p>
-
-        <EditForm Model="this" OnValidSubmit="CreateAsync">
-            <div>
-                <label for="name-input">@Lang.T("profile.yourName")</label>
-                <input id="name-input" type="text" @bind="nameInput" required maxlength="100"
-                       placeholder="@Lang.T("profile.yourName")" disabled="@busy" autofocus />
-            </div>
-
-            <button type="submit" class="btn--primary" disabled="@busy">
-                <span>@(busy ? Lang.T("saving") : Lang.T("save"))</span>
-                <span class="arrow" aria-hidden="true">→</span>
-            </button>
-        </EditForm>
-
-        @if (errorMessage is not null)
-        {
-            <p class="error-text" role="alert">@errorMessage</p>
-        }
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("profile.error.load")</h1>
     }
     else
     {
         <p class="eyebrow">@Lang.T("profile.eyebrow") · @FormatToday()</p>
-
-        <h1><span class="accent-rule"></span>@GreetingFor(), <em>@patient.Name</em>.</h1>
-
-        <p class="muted">@Lang.T("profile.session") @(Auth.GetEmailFromJwt() ?? "")</p>
+        <h1>
+            <span class="accent-rule"></span>
+            @GreetingFor()@(string.IsNullOrEmpty(account.DisplayName) ? "." : ", " + account.DisplayName + ".")
+        </h1>
+        <p class="muted">@account.Email</p>
 
         <hr class="divider" aria-hidden="true" />
 
+        @* === Tu cuenta (always visible) === *@
         <section class="card">
-            @if (!editing)
+            @if (!editingAccount)
             {
-                <p class="card__label">@Lang.T("profile.yourName")</p>
+                <p class="card__label">@Lang.T("profile.account.label")</p>
                 <div class="card__row">
-                    <p class="card__value">@patient.Name</p>
-                    <button class="btn--link" @onclick="StartEdit">@Lang.T("profile.edit") →</button>
+                    <p class="card__value">
+                        @(string.IsNullOrEmpty(account.DisplayName)
+                            ? Lang.T("profile.account.namePrompt")
+                            : account.DisplayName)
+                    </p>
+                    <button class="btn--link" @onclick="StartEditAccount">
+                        @(string.IsNullOrEmpty(account.DisplayName)
+                            ? Lang.T("profile.account.setName")
+                            : Lang.T("profile.edit")) →
+                    </button>
                 </div>
+                <p class="muted">@Lang.T("profile.account.help")</p>
             }
             else
             {
-                <p class="card__label">@Lang.T("profile.edit")</p>
-                <EditForm Model="this" OnValidSubmit="SaveAsync">
+                <p class="card__label">@Lang.T("profile.account.label")</p>
+                <EditForm Model="this" OnValidSubmit="SaveAccountAsync">
                     <div>
-                        <label for="name-edit" class="visually-hidden">@Lang.T("profile.yourName")</label>
-                        <input id="name-edit" type="text" @bind="nameInput" required maxlength="100"
-                               disabled="@busy" autofocus />
+                        <label for="display-name-edit" class="visually-hidden">@Lang.T("profile.yourName")</label>
+                        <input id="display-name-edit" type="text" @bind="displayNameInput"
+                               required maxlength="100" disabled="@busy" autofocus
+                               placeholder="@Lang.T("profile.yourName")" />
                     </div>
                     <div class="action-row">
                         <button type="submit" class="btn--primary" disabled="@busy">
                             <span>@(busy ? Lang.T("saving") : Lang.T("save"))</span>
                             <span class="arrow" aria-hidden="true">→</span>
                         </button>
-                        <button type="button" class="btn--ghost" @onclick="CancelEdit" disabled="@busy">
+                        <button type="button" class="btn--ghost" @onclick="CancelEditAccount" disabled="@busy">
                             @Lang.T("cancel")
                         </button>
                     </div>
                 </EditForm>
             }
-            @if (errorMessage is not null)
+            @if (accountError is not null)
             {
-                <p class="error-text" role="alert">@errorMessage</p>
+                <p class="error-text" role="alert">@accountError</p>
             }
         </section>
 
-        <section class="card card--sunk">
-            <p class="card__label">@Lang.T("profile.permissions")</p>
-            <h2>@Lang.T("profile.permissions.title")</h2>
-            <p>@Lang.T("profile.permissions.lead")</p>
-            <a href="/grants" class="btn--link">@Lang.T("profile.permissions.manage")</a>
-        </section>
+        @* === Tu perfil POTS (only if user is a patient) === *@
+        @if (patient is not null)
+        {
+            <section class="card card--sunk">
+                @if (!editingPatient)
+                {
+                    <p class="card__label">@Lang.T("profile.patient.label")</p>
+                    <div class="card__row">
+                        <p class="card__value">@patient.Name</p>
+                        <button class="btn--link" @onclick="StartEditPatient">@Lang.T("profile.edit") →</button>
+                    </div>
+                }
+                else
+                {
+                    <p class="card__label">@Lang.T("profile.patient.label")</p>
+                    <EditForm Model="this" OnValidSubmit="SavePatientAsync">
+                        <div>
+                            <label for="patient-name-edit" class="visually-hidden">@Lang.T("profile.patient.label")</label>
+                            <input id="patient-name-edit" type="text" @bind="patientNameInput"
+                                   required maxlength="100" disabled="@busy" autofocus />
+                        </div>
+                        <div class="action-row">
+                            <button type="submit" class="btn--primary" disabled="@busy">
+                                <span>@(busy ? Lang.T("saving") : Lang.T("save"))</span>
+                            </button>
+                            <button type="button" class="btn--ghost" @onclick="CancelEditPatient" disabled="@busy">
+                                @Lang.T("cancel")
+                            </button>
+                        </div>
+                    </EditForm>
+                }
+                @if (patientError is not null)
+                {
+                    <p class="error-text" role="alert">@patientError</p>
+                }
+            </section>
 
-        <section class="card card--sunk">
-            <p class="card__label">@Lang.T("profile.notes")</p>
-            <h2>@Lang.T("profile.notes.title")</h2>
-            <p>@Lang.T("profile.notes.lead")</p>
-            <a href="@($"/shared/{patient.Id}/notes")" class="btn--link">@Lang.T("profile.notes.open")</a>
-        </section>
+            <section class="card card--sunk">
+                <p class="card__label">@Lang.T("profile.permissions")</p>
+                <h2>@Lang.T("profile.permissions.title")</h2>
+                <p>@Lang.T("profile.permissions.lead")</p>
+                <a href="/grants" class="btn--link">@Lang.T("profile.permissions.manage")</a>
+            </section>
+
+            <section class="card card--sunk">
+                <p class="card__label">@Lang.T("profile.notes")</p>
+                <h2>@Lang.T("profile.notes.title")</h2>
+                <p>@Lang.T("profile.notes.lead")</p>
+                <a href="@($"/shared/{patient.Id}/notes")" class="btn--link">@Lang.T("profile.notes.open")</a>
+            </section>
+        }
+        else if (account.HasSharedAccess)
+        {
+            @* Caregiver-only: no patient, but has grants. Direct them to /shared. *@
+            <section class="card card--sunk">
+                <p class="card__label">@Lang.T("profile.caregiver.label")</p>
+                <h2>@Lang.T("profile.caregiver.title")</h2>
+                <p>@Lang.T("profile.caregiver.lead")</p>
+                <a href="/shared" class="btn--link">@Lang.T("profile.caregiver.open") →</a>
+            </section>
+
+            @* "I ALSO have POTS" — escondido detrás de un detalle desplegable
+               para evitar clicks accidentales. *@
+            <details class="card card--sunk">
+                <summary class="card__label">@Lang.T("profile.alsoPatient.summary")</summary>
+                <p>@Lang.T("profile.alsoPatient.help")</p>
+                @if (!alsoPatientFormOpen)
+                {
+                    <button class="btn--ghost" @onclick="@(() => alsoPatientFormOpen = true)">
+                        @Lang.T("profile.alsoPatient.openForm")
+                    </button>
+                }
+                else
+                {
+                    <EditForm Model="this" OnValidSubmit="CreatePatientWithConfirmAsync">
+                        <div>
+                            <label for="also-patient-name">@Lang.T("profile.alsoPatient.patientName")</label>
+                            <input id="also-patient-name" type="text" @bind="patientNameInput"
+                                   required maxlength="100" disabled="@busy"
+                                   placeholder="@Lang.T("profile.alsoPatient.patientNamePlaceholder")" />
+                        </div>
+                        <p class="muted">@Lang.T("profile.alsoPatient.warning")</p>
+                        <div class="action-row">
+                            <button type="submit" class="btn--primary" disabled="@busy">
+                                <span>@(busy ? Lang.T("saving") : Lang.T("profile.alsoPatient.confirm"))</span>
+                            </button>
+                            <button type="button" class="btn--ghost" @onclick="@(() => alsoPatientFormOpen = false)" disabled="@busy">
+                                @Lang.T("cancel")
+                            </button>
+                        </div>
+                    </EditForm>
+                    @if (patientError is not null)
+                    {
+                        <p class="error-text" role="alert">@patientError</p>
+                    }
+                }
+            </details>
+        }
+        else
+        {
+            @* No patient, no grants — true onboarding. Offer the patient
+               creation but with a clear "are you the POTS patient?" framing. *@
+            <section class="card card--sunk">
+                <p class="card__label">@Lang.T("profile.firstTime.label")</p>
+                <h2>@Lang.T("profile.firstTime.title")</h2>
+                <p>@Lang.T("profile.firstTime.lead")</p>
+                @if (!alsoPatientFormOpen)
+                {
+                    <button class="btn--primary" style="display:inline-flex;width:auto;"
+                            @onclick="@(() => alsoPatientFormOpen = true)">
+                        <span>@Lang.T("profile.firstTime.iAmPatient")</span>
+                        <span class="arrow" aria-hidden="true">→</span>
+                    </button>
+                    <p class="muted" style="margin-top:1rem;">@Lang.T("profile.firstTime.iAmCaregiver")</p>
+                }
+                else
+                {
+                    <EditForm Model="this" OnValidSubmit="CreatePatientFreshAsync">
+                        <div>
+                            <label for="fresh-patient-name">@Lang.T("profile.firstTime.patientName")</label>
+                            <input id="fresh-patient-name" type="text" @bind="patientNameInput"
+                                   required maxlength="100" disabled="@busy" autofocus />
+                        </div>
+                        <div class="action-row">
+                            <button type="submit" class="btn--primary" disabled="@busy">
+                                <span>@(busy ? Lang.T("saving") : Lang.T("save"))</span>
+                            </button>
+                            <button type="button" class="btn--ghost" @onclick="@(() => alsoPatientFormOpen = false)" disabled="@busy">
+                                @Lang.T("cancel")
+                            </button>
+                        </div>
+                    </EditForm>
+                    @if (patientError is not null)
+                    {
+                        <p class="error-text" role="alert">@patientError</p>
+                    }
+                }
+            </section>
+        }
 
         <hr class="divider divider--ornament" aria-hidden="true" />
 
@@ -103,12 +232,19 @@
 </div>
 
 @code {
+    private AccountDto? account;
     private PatientDto? patient;
     private bool loading = true;
-    private bool editing = false;
     private bool busy = false;
-    private string nameInput = "";
-    private string? errorMessage;
+
+    private bool editingAccount = false;
+    private string displayNameInput = "";
+    private string? accountError;
+
+    private bool editingPatient = false;
+    private string patientNameInput = "";
+    private string? patientError;
+    private bool alsoPatientFormOpen = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -121,12 +257,17 @@
 
         try
         {
-            patient = await PatientClient.GetMyPatientAsync();
-            nameInput = patient?.Name ?? "";
+            account = await AccountClient.GetAsync();
+            displayNameInput = account?.DisplayName ?? "";
+            if (account?.IsPatient == true)
+            {
+                patient = await PatientClient.GetMyPatientAsync();
+                patientNameInput = patient?.Name ?? "";
+            }
         }
         catch (HttpRequestException)
         {
-            errorMessage = Lang.T("profile.error.load");
+            accountError = Lang.T("profile.error.load");
         }
         finally
         {
@@ -135,25 +276,59 @@
     }
 
     private void OnLangChanged() => InvokeAsync(StateHasChanged);
-
     public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
-    private void StartEdit() { editing = true; nameInput = patient!.Name; errorMessage = null; }
-    private void CancelEdit() { editing = false; nameInput = patient!.Name; }
+    private void StartEditAccount() { editingAccount = true; displayNameInput = account!.DisplayName ?? ""; accountError = null; }
+    private void CancelEditAccount() { editingAccount = false; displayNameInput = account!.DisplayName ?? ""; }
 
-    private async Task CreateAsync()
+    private async Task SaveAccountAsync()
     {
-        errorMessage = null; busy = true;
-        try { patient = await PatientClient.CreateMyPatientAsync(nameInput); }
-        catch (HttpRequestException) { errorMessage = Lang.T("profile.error.save"); }
+        accountError = null; busy = true;
+        try
+        {
+            account = await AccountClient.UpdateDisplayNameAsync(displayNameInput);
+            editingAccount = false;
+        }
+        catch (HttpRequestException) { accountError = Lang.T("profile.error.save"); }
         finally { busy = false; }
     }
 
-    private async Task SaveAsync()
+    private void StartEditPatient() { editingPatient = true; patientNameInput = patient!.Name; patientError = null; }
+    private void CancelEditPatient() { editingPatient = false; patientNameInput = patient!.Name; }
+
+    private async Task SavePatientAsync()
     {
-        errorMessage = null; busy = true;
-        try { patient = await PatientClient.RenameMyPatientAsync(nameInput); editing = false; }
-        catch (HttpRequestException) { errorMessage = Lang.T("profile.error.save"); }
+        patientError = null; busy = true;
+        try { patient = await PatientClient.RenameMyPatientAsync(patientNameInput); editingPatient = false; }
+        catch (HttpRequestException) { patientError = Lang.T("profile.error.save"); }
+        finally { busy = false; }
+    }
+
+    private async Task CreatePatientFreshAsync()
+    {
+        patientError = null; busy = true;
+        try
+        {
+            patient = await PatientClient.CreateMyPatientAsync(patientNameInput);
+            account = await AccountClient.GetAsync(); // refresh isPatient flag
+            Roles.Invalidate();
+            alsoPatientFormOpen = false;
+        }
+        catch (HttpRequestException) { patientError = Lang.T("profile.error.save"); }
+        finally { busy = false; }
+    }
+
+    private async Task CreatePatientWithConfirmAsync()
+    {
+        patientError = null; busy = true;
+        try
+        {
+            patient = await PatientClient.CreateMyPatientAsync(patientNameInput, confirmAlsoPatient: true);
+            account = await AccountClient.GetAsync();
+            Roles.Invalidate();
+            alsoPatientFormOpen = false;
+        }
+        catch (HttpRequestException) { patientError = Lang.T("profile.error.save"); }
         finally { busy = false; }
     }
 

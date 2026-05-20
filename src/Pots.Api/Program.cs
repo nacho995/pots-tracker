@@ -200,6 +200,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapAuthEndpoints();
+app.MapAccountEndpoints();
 app.MapPatientEndpoints();
 app.MapGrantEndpoints();
 app.MapStatusEndpoints();

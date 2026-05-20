@@ -16,7 +16,12 @@ public sealed record DailyStatusDto(
     string? LocationNote,
     string? Note,
     bool EpisodeOccurred,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    // Phase 6: surface "who pressed the button" when ≠ patient owner.
+    // Null when the patient self-recorded; non-null = display name (with
+    // email fallback) of the Editor grantee who logged on her behalf.
+    // UI renders "Registrado por X".
+    string? RecorderName = null);
 
 public sealed record UpdateStatusDetailDto(
     string? Posture = null,

@@ -21,9 +21,13 @@ public sealed class PatientClient
         return await response.Content.ReadFromJsonAsync<PatientDto>(cancellationToken: ct);
     }
 
-    public async Task<PatientDto> CreateMyPatientAsync(string name, CancellationToken ct = default)
+    public async Task<PatientDto> CreateMyPatientAsync(string name, bool confirmAlsoPatient = false, CancellationToken ct = default)
     {
-        var response = await _http.PostAsJsonAsync("/me/patient", new CreatePatientDto(name), ct);
+        // Phase 6: callers who are already caregivers must explicitly confirm
+        // they also have POTS. The API returns 409 `patient.caregiver_first`
+        // otherwise. UI gates this with a confirmation modal.
+        var url = confirmAlsoPatient ? "/me/patient?confirmAlsoPatient=true" : "/me/patient";
+        var response = await _http.PostAsJsonAsync(url, new CreatePatientDto(name), ct);
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<PatientDto>(cancellationToken: ct))!;
     }

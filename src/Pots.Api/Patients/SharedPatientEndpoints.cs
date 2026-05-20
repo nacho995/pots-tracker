@@ -184,6 +184,16 @@ public static class SharedPatientEndpoints
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync(cancellationToken);
 
+        // Phase 6 attribution. Look up the patient's owner user_id once to
+        // know which entries need a RecorderName surfaced (those NOT
+        // recorded by the owner).
+        var ownerUserId = await db.Patients
+            .Where(p => p.Id == patientId)
+            .Select(p => p.OwnerUserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        var nameMap = await StatusEndpoints.BuildRecorderNameMapAsync(
+            db, patientId, rows, ownerUserId, cancellationToken);
+
         // Audit only when there's something to audit — i.e. when RLS
         // actually returned data for a patient that is NOT the owner's own.
         // We check ownership via a separate query rather than embed in the
@@ -201,15 +211,9 @@ public static class SharedPatientEndpoints
             }
         }
 
-        var dtos = rows.Select(e => new DailyStatusDto(
-            e.Id,
-            e.Status.ToString(),
-            e.Posture?.ToString(),
-            e.Activity,
-            e.LocationNote,
-            e.Note,
-            e.EpisodeOccurred,
-            e.CreatedAt)).ToList();
+        var dtos = rows
+            .Select(e => StatusEndpoints.MapDtoWithRecorder(e, ownerUserId, nameMap))
+            .ToList();
 
         return Results.Ok(dtos);
     }

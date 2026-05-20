@@ -28,6 +28,8 @@ builder.Services.AddSingleton<AuthClient>(sp => new AuthClient(
     sp.GetRequiredService<LocalStorage>()));
 
 // Authed HttpClient typed-clients for protected endpoints.
+builder.Services.AddHttpClient<AccountClient>(c => c.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler<PotsAuthMessageHandler>();
 builder.Services.AddHttpClient<PatientClient>(c => c.BaseAddress = new Uri(apiBaseUrl))
     .AddHttpMessageHandler<PotsAuthMessageHandler>();
 builder.Services.AddHttpClient<GrantClient>(c => c.BaseAddress = new Uri(apiBaseUrl))

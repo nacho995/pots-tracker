@@ -108,7 +108,56 @@ public static class StatusEndpoints
             .OrderByDescending(e => e.CreatedAt)
             .ToListAsync(cancellationToken);
 
-        return Results.Ok(rows.Select(MapDto).ToList());
+        // Phase 6 attribution: surface RecorderName for entries logged by an
+        // Editor on the patient's behalf. Owner self-records leave RecorderName
+        // null. The lookup uses the SECURITY DEFINER fn so cross-user names
+        // (which RLS on users would hide) become visible to the legitimate
+        // owner without weakening users_self_select.
+        var nameMap = await BuildRecorderNameMapAsync(db, patient.Id, rows, patient.OwnerUserId, cancellationToken);
+        return Results.Ok(rows.Select(e => MapDtoWithRecorder(e, patient.OwnerUserId, nameMap)).ToList());
+    }
+
+    private sealed record UserEmailRow(Guid UserId, string Email, string? DisplayName);
+
+    internal static async Task<Dictionary<Guid, string>> BuildRecorderNameMapAsync(
+        PotsDbContext db,
+        Guid patientId,
+        IEnumerable<DailyStatusEntry> entries,
+        Guid ownerUserId,
+        CancellationToken cancellationToken)
+    {
+        // Only resolve names for entries NOT recorded by the owner. The owner's
+        // own entries don't need attribution rendered.
+        var nonOwnerRecorders = entries
+            .Where(e => e.RecordedByUserId != ownerUserId)
+            .Select(e => e.RecordedByUserId)
+            .Distinct()
+            .ToList();
+        if (nonOwnerRecorders.Count == 0) return new();
+
+        var rows = await db.Database
+            .SqlQuery<UserEmailRow>($"SELECT * FROM list_patient_user_emails({patientId})")
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Where(r => nonOwnerRecorders.Contains(r.UserId))
+            .ToDictionary(
+                r => r.UserId,
+                r => string.IsNullOrWhiteSpace(r.DisplayName) ? r.Email : r.DisplayName!);
+    }
+
+    internal static DailyStatusDto MapDtoWithRecorder(
+        DailyStatusEntry e,
+        Guid ownerUserId,
+        IReadOnlyDictionary<Guid, string> nameMap)
+    {
+        string? recorderName = null;
+        if (e.RecordedByUserId != ownerUserId && nameMap.TryGetValue(e.RecordedByUserId, out var name))
+            recorderName = name;
+        return new DailyStatusDto(
+            e.Id, e.Status.ToString(), e.Posture?.ToString(),
+            e.Activity, e.LocationNote, e.Note,
+            e.EpisodeOccurred, e.CreatedAt, recorderName);
     }
 
     private static async Task<IResult> UpdateDetailAsync(
