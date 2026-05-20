@@ -2,6 +2,7 @@
 @inject AuthClient Auth
 @inject PatientClient PatientClient
 @inject StatusClient StatusClient
+@inject RoleContextService Roles
 @inject LanguageService Lang
 @inject NavigationManager Nav
 @implements IDisposable
@@ -16,10 +17,14 @@
     }
     else if (patient is null)
     {
-        <p class="eyebrow">@Lang.T("today.needName.eyebrow")</p>
-        <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("today.needName.title"))</h1>
-        <p class="lead">@Lang.T("today.needName.lead")</p>
-        <a href="/profile" class="btn--link">@Lang.T("today.needName.link")</a>
+        @* OnInitializedAsync redirects to /shared or /welcome before this
+           branch matters; kept as a safety net so a null patient cannot fall
+           through to the main UI, which assumes patient is non-null.
+           The h1 is screen-reader-only because the redirect is near-instant
+           and a visible heading would flash; landmark navigation still works
+           for assistive tech. *@
+        <h1 class="visually-hidden">@Lang.T("common.redirecting")</h1>
+        <p class="eyebrow">@Lang.T("common.redirecting")</p>
     }
     else if (justRecorded is { } recorded)
     {
@@ -250,10 +255,18 @@
         try
         {
             patient = await PatientClient.GetMyPatientAsync();
-            if (patient is not null)
+            if (patient is null)
             {
-                todayHistory = await StatusClient.GetTodayAsync();
+                // No own POTS profile: route to the appropriate landing
+                // instead of prompting the user to register as a patient.
+                // A caregiver invited by Amelia must never be asked
+                // "how are your symptoms today?".
+                try { await Roles.EnsureLoadedAsync(); }
+                catch { /* fall through to /welcome — never trap the user */ }
+                Nav.NavigateTo(Roles.HasSharedAccess ? "/shared" : "/welcome", replace: true);
+                return;
             }
+            todayHistory = await StatusClient.GetTodayAsync();
         }
         catch (HttpRequestException) { /* keep state */ }
         finally { loading = false; }

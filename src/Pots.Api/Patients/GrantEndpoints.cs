@@ -57,11 +57,18 @@ public static class GrantEndpoints
         var inviterEmail = http.User.FindFirstValue(JwtRegisteredClaimNames.Email)
             ?? "Alguien";
 
-        if (!Enum.TryParse<GrantRole>(dto.Role, ignoreCase: false, out var role) ||
-            !Enum.IsDefined(role))
-        {
-            return Results.BadRequest(new { code = "grant.invalid_role" });
-        }
+        // Phase 3 invariant: all NEW invitations are Viewer. Editor is no
+        // longer reachable at invite time; a Viewer must explicitly request
+        // an upgrade via /patients/{id}/grant-upgrade-requests and the patient
+        // owner must approve it. This makes the act of granting write access
+        // a deliberate per-person decision rather than a tickbox on an
+        // invite form.
+        // We accept either "Viewer" or omitted/null for backward-compat with
+        // any caller (tests, scripts) still sending the field — anything else
+        // is rejected with 400, never silently downgraded.
+        if (!string.IsNullOrEmpty(dto.Role) && dto.Role != nameof(GrantRole.Viewer))
+            return Results.BadRequest(new { code = "grant.role_locked_to_viewer" });
+        var role = GrantRole.Viewer;
 
         string normalizedEmail;
         try { normalizedEmail = EmailValidator.Normalize(dto.GranteeEmail); }

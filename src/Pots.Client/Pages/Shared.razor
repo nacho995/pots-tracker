@@ -28,9 +28,19 @@
             @foreach (var s in shared)
             {
                 <li class="shared-card">
-                    <p class="card__label">@(s.Role == "Editor" ? Lang.T("grants.list.roleEditor") : Lang.T("grants.list.roleViewer")) · @Lang.T("grants.list.since").ToLower() @s.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")</p>
-                    <h2>@s.PatientName</h2>
-                    <p class="muted">@Lang.T("shared.owner") @s.OwnerEmail</p>
+                    @* Whole card is the link so the touch target is the full
+                       row (≥48px). The <a> wraps the content rather than the
+                       <li> so the list semantics for screen readers stay
+                       intact. *@
+                    <a href="@($"/shared/{s.PatientId}")" class="shared-card__link">
+                        <p class="card__label">@(s.Role == "Editor" ? Lang.T("grants.list.roleEditor") : Lang.T("grants.list.roleViewer")) · @Lang.T("grants.list.since").ToLower() @s.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")</p>
+                        <h2>@s.PatientName</h2>
+                        <p class="muted">@Lang.T("shared.owner") @s.OwnerEmail</p>
+                        <span class="shared-card__chev" aria-hidden="true">→</span>
+                        @* Screen-reader-only label. The chev is decorative; this
+                           is what assistive tech announces as the link target. *@
+                        <span class="visually-hidden">@string.Format(Lang.T("shared.card.openFor"), s.PatientName)</span>
+                    </a>
                 </li>
             }
         </ul>

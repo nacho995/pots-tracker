@@ -52,8 +52,11 @@
         var ok = await Auth.VerifyAsync(rawToken);
         if (ok)
         {
-            await JS.InvokeVoidAsync("history.replaceState", null, "", "/today");
-            Nav.NavigateTo("/today", replace: true);
+            // Bounce through "/" so Home routes by role (patient → /today,
+            // caregiver → /shared, neither → /welcome). Sending users
+            // straight to /today treats every invitee as a POTS patient.
+            await JS.InvokeVoidAsync("history.replaceState", null, "", "/");
+            Nav.NavigateTo("/", replace: true);
         }
         else
         {

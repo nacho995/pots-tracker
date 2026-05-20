@@ -72,7 +72,7 @@ public static class StatusEndpoints
         try
         {
             entry = DailyStatusEntry.Create(
-                patient.Id, status, posture, dto.Activity, dto.LocationNote, dto.Note, dto.EpisodeOccurred);
+                patient.Id, userId, status, posture, dto.Activity, dto.LocationNote, dto.Note, dto.EpisodeOccurred);
         }
         catch (DomainException ex)
         {

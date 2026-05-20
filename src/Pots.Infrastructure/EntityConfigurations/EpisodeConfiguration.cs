@@ -11,6 +11,7 @@ internal sealed class EpisodeConfiguration : IEntityTypeConfiguration<Episode>
         builder.ToTable("episodes");
         builder.HasKey(e => e.Id);
         builder.Property(e => e.PatientId).IsRequired();
+        builder.Property(e => e.RecordedByUserId).IsRequired();
         builder.Property(e => e.StartTime).IsRequired();
         builder.Property(e => e.CreatedAt);
 
@@ -32,6 +33,11 @@ internal sealed class EpisodeConfiguration : IEntityTypeConfiguration<Episode>
         builder.HasOne<Patient>()
             .WithMany()
             .HasForeignKey(e => e.PatientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(e => e.RecordedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

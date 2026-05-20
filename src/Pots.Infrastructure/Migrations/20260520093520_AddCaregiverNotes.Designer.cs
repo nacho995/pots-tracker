@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pots.Infrastructure;
@@ -11,9 +12,11 @@ using Pots.Infrastructure;
 namespace Pots.Infrastructure.Migrations
 {
     [DbContext(typeof(PotsDbContext))]
-    partial class PotsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260520093520_AddCaregiverNotes")]
+    partial class AddCaregiverNotes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -163,10 +166,6 @@ namespace Pots.Infrastructure.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("posture");
 
-                    b.Property<Guid>("RecordedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("recorded_by_user_id");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -175,9 +174,6 @@ namespace Pots.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_daily_status_entries");
-
-                    b.HasIndex("RecordedByUserId")
-                        .HasDatabaseName("ix_daily_status_entries_recorded_by_user_id");
 
                     b.HasIndex("PatientId", "CreatedAt")
                         .IsDescending(false, true)
@@ -241,10 +237,6 @@ namespace Pots.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("prevented_fainting");
 
-                    b.Property<Guid>("RecordedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("recorded_by_user_id");
-
                     b.Property<int?>("RecoveryTimeMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("recovery_time_minutes");
@@ -261,9 +253,6 @@ namespace Pots.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_episodes");
-
-                    b.HasIndex("RecordedByUserId")
-                        .HasDatabaseName("ix_episodes_recorded_by_user_id");
 
                     b.HasIndex("PatientId", "StartTime")
                         .IsDescending(false, true)
@@ -1097,13 +1086,6 @@ namespace Pots.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_daily_status_entries_patients_patient_id");
-
-                    b.HasOne("Pots.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("RecordedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_daily_status_entries_users_recorded_by_user_id");
                 });
 
             modelBuilder.Entity("Pots.Domain.Entities.Episode", b =>
@@ -1114,13 +1096,6 @@ namespace Pots.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_episodes_patients_patient_id");
-
-                    b.HasOne("Pots.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("RecordedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_episodes_users_recorded_by_user_id");
                 });
 
             modelBuilder.Entity("Pots.Domain.Entities.GrantUpgradeRequest", b =>

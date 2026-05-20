@@ -8,6 +8,13 @@ public sealed class DailyStatusEntry
 {
     public Guid Id { get; private set; }
     public Guid PatientId { get; private set; }
+    // Denormalised "who pressed the button". Identical to the patient's
+    // owner_user_id for the vast majority of rows; differs only when an
+    // Editor grantee logged on the patient's behalf (Amelia mid-crisis,
+    // María logs Red for her — Phase 5). Kept on the row so the Doctor
+    // Report can render "Registrado por María, no por Amelia" without
+    // joining audit_log every time.
+    public Guid RecordedByUserId { get; private set; }
     public DailyStatusKind Status { get; private set; }
     public PostureKind? Posture { get; private set; }
     public string? Activity { get; private set; }
@@ -20,6 +27,7 @@ public sealed class DailyStatusEntry
 
     public static DailyStatusEntry Create(
         Guid patientId,
+        Guid recordedByUserId,
         DailyStatusKind status,
         PostureKind? posture = null,
         string? activity = null,
@@ -29,6 +37,8 @@ public sealed class DailyStatusEntry
     {
         if (patientId == Guid.Empty)
             throw new DomainException("Patient is required.");
+        if (recordedByUserId == Guid.Empty)
+            throw new DomainException("Recorder is required.");
         if (!Enum.IsDefined(status))
             throw new DomainException("Status is not valid.");
         if (posture is not null && !Enum.IsDefined(posture.Value))
@@ -38,6 +48,7 @@ public sealed class DailyStatusEntry
         {
             Id = Guid.CreateVersion7(),
             PatientId = patientId,
+            RecordedByUserId = recordedByUserId,
             Status = status,
             Posture = posture,
             Activity = TrimToMax(activity, 100),

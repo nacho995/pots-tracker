@@ -69,4 +69,18 @@ public sealed class PatientGrant
         RevokedAt = DateTimeOffset.UtcNow;
         RevokedByUserId = revokedByUserId;
     }
+
+    // Used by the approve-upgrade flow. Pre-Phase 3, Editor could be issued
+    // directly at invite time; from Phase 3 onwards all invites are Viewer
+    // and Editor is only reachable through an approved GrantUpgradeRequest.
+    // The owner check stays in the application layer (grants_owner_modify
+    // RLS policy is the DB floor); this method is the domain invariant on
+    // the transition itself.
+    public void UpgradeToEditor()
+    {
+        if (!IsActive)
+            throw new DomainException("Cannot upgrade a revoked grant.");
+        if (Role == GrantRole.Editor) return;
+        Role = GrantRole.Editor;
+    }
 }

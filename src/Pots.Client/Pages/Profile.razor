@@ -89,6 +89,13 @@
             <a href="/grants" class="btn--link">@Lang.T("profile.permissions.manage")</a>
         </section>
 
+        <section class="card card--sunk">
+            <p class="card__label">@Lang.T("profile.notes")</p>
+            <h2>@Lang.T("profile.notes.title")</h2>
+            <p>@Lang.T("profile.notes.lead")</p>
+            <a href="@($"/shared/{patient.Id}/notes")" class="btn--link">@Lang.T("profile.notes.open")</a>
+        </section>
+
         <hr class="divider divider--ornament" aria-hidden="true" />
 
         <button class="btn--quiet" @onclick="SignOutAsync">@Lang.T("profile.signout")</button>

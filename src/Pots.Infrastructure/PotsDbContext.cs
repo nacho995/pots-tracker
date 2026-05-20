@@ -8,6 +8,8 @@ public sealed class PotsDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<PatientGrant> PatientGrants => Set<PatientGrant>();
+    public DbSet<GrantUpgradeRequest> GrantUpgradeRequests => Set<GrantUpgradeRequest>();
+    public DbSet<CaregiverNote> CaregiverNotes => Set<CaregiverNote>();
     public DbSet<AuditLogEntry> AuditLog => Set<AuditLogEntry>();
     public DbSet<MagicLinkToken> MagicLinkTokens => Set<MagicLinkToken>();
 

@@ -50,6 +50,18 @@ builder.Services.AddHttpClient<ReportClient>(c => c.BaseAddress = new Uri(apiBas
     .AddHttpMessageHandler<PotsAuthMessageHandler>();
 builder.Services.AddHttpClient<SharedClient>(c => c.BaseAddress = new Uri(apiBaseUrl))
     .AddHttpMessageHandler<PotsAuthMessageHandler>();
+builder.Services.AddHttpClient<SharedPatientClient>(c => c.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler<PotsAuthMessageHandler>();
+builder.Services.AddHttpClient<GrantUpgradeClient>(c => c.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler<PotsAuthMessageHandler>();
+builder.Services.AddHttpClient<CaregiverNoteClient>(c => c.BaseAddress = new Uri(apiBaseUrl))
+    .AddHttpMessageHandler<PotsAuthMessageHandler>();
+
+// Singleton: the cached "is the user a patient, a caregiver, or neither?"
+// answer is per-circuit and survives navigation. RoleContextService resolves
+// the transient PatientClient/SharedClient per call to avoid freezing their
+// HttpMessageHandler chain.
+builder.Services.AddSingleton<RoleContextService>();
 
 var app = builder.Build();
 
@@ -59,5 +71,16 @@ var auth = app.Services.GetRequiredService<AuthClient>();
 await auth.InitializeAsync();
 var lang = app.Services.GetRequiredService<LanguageService>();
 await lang.InitializeAsync();
+
+// If the user is already authenticated (reload, return visit), pre-fetch
+// their role so BottomNav and Home don't flash a patient-nav before settling
+// into a caregiver-only layout. Swallowed: a transient network error here
+// must not block the app from booting; the next consumer will retry.
+if (!string.IsNullOrEmpty(auth.CachedJwt))
+{
+    var roles = app.Services.GetRequiredService<RoleContextService>();
+    try { await roles.EnsureLoadedAsync(); }
+    catch { /* boot anyway; pages will surface their own errors */ }
+}
 
 await app.RunAsync();

@@ -1,12 +1,30 @@
 @page "/"
 @inject AuthClient Auth
+@inject RoleContextService Roles
 @inject NavigationManager Nav
 
 <PageTitle>POTS</PageTitle>
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        Nav.NavigateTo(string.IsNullOrEmpty(Auth.CachedJwt) ? "/login" : "/today", replace: true);
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        try { await Roles.EnsureLoadedAsync(); }
+        catch
+        {
+            // Network/API failure during routing: default to /today rather
+            // than dead-ending here. Today.razor surfaces its own load error.
+            Nav.NavigateTo("/today", replace: true);
+            return;
+        }
+
+        if (Roles.IsPatient) Nav.NavigateTo("/today", replace: true);
+        else if (Roles.HasSharedAccess) Nav.NavigateTo("/shared", replace: true);
+        else Nav.NavigateTo("/welcome", replace: true);
     }
 }

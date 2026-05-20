@@ -1,6 +1,7 @@
 @page "/grants"
 @inject AuthClient Auth
 @inject GrantClient GrantClient
+@inject GrantUpgradeClient Upgrades
 @inject NavigationManager Nav
 @inject LanguageService Lang
 @implements IDisposable
@@ -25,34 +26,13 @@
                        placeholder="@Lang.T("grants.invite.emailPlaceholder")" @bind="emailInput" required disabled="@busy" />
             </div>
 
-            <fieldset class="role-fieldset">
-                <legend>@Lang.T("grants.invite.typeLegend")</legend>
-                <label class="role-row">
-                    <input type="radio" name="role" value="Viewer"
-                           checked="@(roleInput == "Viewer")"
-                           @onchange="@(_ => roleInput = "Viewer")" />
-                    <span>
-                        <span class="role-row__title">@Lang.T("grants.invite.viewer")</span>
-                        <span class="role-row__hint">@Lang.T("grants.invite.viewer.hint")</span>
-                    </span>
-                </label>
-                <label class="role-row">
-                    <input type="radio" name="role" value="Editor"
-                           checked="@(roleInput == "Editor")"
-                           @onchange="@(_ => roleInput = "Editor")" />
-                    <span>
-                        <span class="role-row__title">@Lang.T("grants.invite.editor")</span>
-                        <span class="role-row__hint">@Lang.T("grants.invite.editor.hint")</span>
-                    </span>
-                </label>
-            </fieldset>
+            @* Phase 3: invitations are always Viewer. To grant write access,
+               the invitee asks from her shared dashboard and we surface the
+               request below; no more "Editor at invite" tickbox. *@
+            <p class="muted">@Lang.T("grants.invite.viewerOnlyNote")</p>
 
             <button type="submit" class="btn--primary" disabled="@busy">
-                <span>
-                    @(busy
-                        ? Lang.T("grants.invite.sending")
-                        : (roleInput == "Editor" ? Lang.T("grants.invite.inviteToEdit") : Lang.T("grants.invite.inviteToView")))
-                </span>
+                <span>@(busy ? Lang.T("grants.invite.sending") : Lang.T("grants.invite.inviteToView"))</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </button>
         </EditForm>
@@ -62,6 +42,46 @@
             <p class="@(inviteOk ? "muted" : "error-text")" role="status">@inviteMessage</p>
         }
     </section>
+
+    @if (pendingRequests.Count > 0)
+    {
+        <section class="card flow">
+            <p class="card__label">@Lang.T("grants.upgradeRequests.label")</p>
+            <h2>@Lang.T("grants.upgradeRequests.title")</h2>
+            <p class="muted">@Lang.T("grants.upgradeRequests.help")</p>
+            <ul class="grant-list">
+                @foreach (var r in pendingRequests)
+                {
+                    <li class="grant-row">
+                        <div>
+                            <p class="grant-row__email">@r.RequesterEmail</p>
+                            <p class="grant-row__meta">
+                                @Lang.T("grants.upgradeRequests.since") @r.RequestedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                            </p>
+                            @if (!string.IsNullOrWhiteSpace(r.Message))
+                            {
+                                <p class="grant-row__message">"@r.Message"</p>
+                            }
+                        </div>
+                        <div class="action-row">
+                            <button class="btn--primary" style="display:inline-flex;width:auto;"
+                                    @onclick="@(() => ApproveAsync(r.RequestId))" disabled="@busy">
+                                <span>@Lang.T("grants.upgradeRequests.approve")</span>
+                            </button>
+                            <button class="btn--quiet"
+                                    @onclick="@(() => DenyAsync(r.RequestId))" disabled="@busy">
+                                @Lang.T("grants.upgradeRequests.deny")
+                            </button>
+                        </div>
+                    </li>
+                }
+            </ul>
+            @if (upgradeMessage is not null)
+            {
+                <p class="muted" role="status">@upgradeMessage</p>
+            }
+        </section>
+    }
 
     <section class="card card--sunk">
         <p class="card__label">@Lang.T("grants.list.label")</p>
@@ -104,12 +124,13 @@
 
 @code {
     private string emailInput = "";
-    private string roleInput = "Viewer";
     private List<GrantDto> grants = new();
+    private List<GrantUpgradeRequestDto> pendingRequests = new();
     private bool loading = true;
     private bool busy = false;
     private string? inviteMessage;
     private bool inviteOk = false;
+    private string? upgradeMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -129,8 +150,17 @@
     private async Task LoadAsync()
     {
         loading = true;
-        try { grants = await GrantClient.ListAsync(); }
-        catch { /* keep current list */ }
+        try
+        {
+            // Grants list + pending upgrade inbox are independent: fetch in
+            // parallel so the page paints once.
+            var grantsTask = GrantClient.ListAsync();
+            var requestsTask = Upgrades.ListPendingForMyPatientAsync();
+            await Task.WhenAll(grantsTask, requestsTask);
+            grants = await grantsTask;
+            pendingRequests = await requestsTask;
+        }
+        catch { /* keep current lists */ }
         finally { loading = false; }
     }
 
@@ -139,7 +169,10 @@
         inviteMessage = null; busy = true;
         try
         {
-            var (ok, code) = await GrantClient.InviteAsync(emailInput, roleInput);
+            // Phase 3: server locks the role to Viewer. We still send the
+            // string for backward compatibility with the existing GrantClient
+            // signature; sending anything other than "Viewer" returns 400.
+            var (ok, code) = await GrantClient.InviteAsync(emailInput, "Viewer");
             if (ok)
             {
                 inviteOk = true;
@@ -166,6 +199,38 @@
     {
         busy = true;
         try { await GrantClient.RevokeAsync(grantId); await LoadAsync(); }
+        finally { busy = false; }
+    }
+
+    private async Task ApproveAsync(Guid requestId)
+    {
+        busy = true; upgradeMessage = null;
+        try
+        {
+            await Upgrades.ApproveAsync(requestId);
+            upgradeMessage = Lang.T("grants.upgradeRequests.approveOk");
+            await LoadAsync();
+        }
+        catch
+        {
+            upgradeMessage = Lang.T("grants.upgradeRequests.error");
+        }
+        finally { busy = false; }
+    }
+
+    private async Task DenyAsync(Guid requestId)
+    {
+        busy = true; upgradeMessage = null;
+        try
+        {
+            await Upgrades.DenyAsync(requestId);
+            upgradeMessage = Lang.T("grants.upgradeRequests.denyOk");
+            await LoadAsync();
+        }
+        catch
+        {
+            upgradeMessage = Lang.T("grants.upgradeRequests.error");
+        }
         finally { busy = false; }
     }
 }

@@ -1,0 +1,136 @@
+@* Read-only list of episodes for a shared patient. Route:
+   /shared/{PatientId:guid}/episodes
+*@
+
+@page "/shared/{PatientId:guid}/episodes"
+@inject AuthClient Auth
+@inject SharedPatientClient SharedPatients
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@(patient?.Name ?? Lang.T("loading")) · @Lang.T("shared.episodes.title")</PageTitle>
+
+<div class="shell flow stagger">
+    @if (loading)
+    {
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.episodes.title")</h1>
+    }
+    else if (patient is null)
+    {
+        <p class="eyebrow">@Lang.T("shared.dashboard.notFound.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.dashboard.notFound.title")</h1>
+        <a href="/shared" class="btn--link">@Lang.T("shared.dashboard.back")</a>
+    }
+    else
+    {
+        <p class="eyebrow">@string.Format(Lang.T("shared.episodes.eyebrow"), patient.Name)</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.episodes.title")</h1>
+
+        @if (episodes.Count == 0)
+        {
+            <p class="lead">@Lang.T("shared.episodes.empty")</p>
+        }
+        else
+        {
+            @* Server caps at 500. We request 200; if a long-tenured patient
+               had more, the list is silently truncated. We surface the count
+               so a caregiver knows what they're looking at. Full pagination
+               is a follow-up — see CLAUDE.md task list. *@
+            <p class="muted">@string.Format(Lang.T("shared.episodes.count"), episodes.Count)</p>
+            <ul class="episode-list">
+                @foreach (var e in episodes)
+                {
+                    <li class="episode-list__item">
+                        <p class="card__label">@e.StartTime.ToLocalTime().ToString("yyyy-MM-dd · HH:mm")</p>
+                        <p><strong>@e.MainSymptom</strong></p>
+                        <p>@Lang.T("shared.episodes.trigger"): @TriggerLabel(e.TriggerSuspected)</p>
+                        @if (e.PostureBefore is not null)
+                        {
+                            <p>@Lang.T("shared.episodes.posture"): @PostureLabel(e.PostureBefore)</p>
+                        }
+                        @if (e.DurationMinutes is { } d)
+                        {
+                            <p>@string.Format(Lang.T("shared.dashboard.episodes.duration"), d)</p>
+                        }
+                        @if (e.HrDuringBpm is { } hr)
+                        {
+                            <p>@Lang.T("shared.episodes.hr"): @hr</p>
+                        }
+                        @if (e.BpDuringSystolic is { } sys && e.BpDuringDiastolic is { } dia)
+                        {
+                            <p>@Lang.T("shared.episodes.bp"): @sys / @dia</p>
+                        }
+                        @if (!string.IsNullOrEmpty(e.ActionTaken))
+                        {
+                            <p>@Lang.T("shared.episodes.action"): @e.ActionTaken</p>
+                        }
+                        @if (!string.IsNullOrEmpty(e.Note))
+                        {
+                            <p class="muted">@e.Note</p>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        <hr class="divider divider--ornament" aria-hidden="true" />
+
+        <p class="muted" style="text-align:center;">
+            <a href="@($"/shared/{PatientId}")" class="btn--link">@Lang.T("shared.episodes.back")</a>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    private SharedPatientContextDto? patient;
+    private List<EpisodeDto> episodes = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        try
+        {
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+            if (patient is null) return;
+            episodes = await SharedPatients.GetEpisodesAsync(PatientId, take: 200);
+        }
+        catch
+        {
+            patient = null;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+
+    private string PostureLabel(string? posture) => posture switch
+    {
+        "Lying" => Lang.T("posture.lying"),
+        "Sitting" => Lang.T("posture.sitting"),
+        "Standing" => Lang.T("posture.standing"),
+        "Walking" => Lang.T("posture.walking"),
+        "Shower" => Lang.T("posture.shower"),
+        "AfterMeal" => Lang.T("posture.afterMeal"),
+        _ => posture ?? "",
+    };
+
+    private string TriggerLabel(string trigger) =>
+        trigger.Length == 0 ? trigger
+        : Lang.T("trigger." + char.ToLowerInvariant(trigger[0]) + trigger[1..]);
+}

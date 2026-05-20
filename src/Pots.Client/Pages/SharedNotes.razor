@@ -1,0 +1,212 @@
+@* Caregiver notes thread for a specific patient. Reachable by anyone with
+   access (the patient herself + active grantees). Compose box at the top,
+   list below, newest first. Author email and timestamp shown on each note.
+
+   Soft-delete: each note carries a `canDelete` flag computed server-side
+   (true for the author and for the patient owner). We don't show a delete
+   affordance when the server says we can't — defense-in-depth alongside the
+   RLS UPDATE policy.
+*@
+
+@page "/shared/{PatientId:guid}/notes"
+@inject AuthClient Auth
+@inject SharedPatientClient SharedPatients
+@inject CaregiverNoteClient Notes
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@(patient?.Name ?? Lang.T("loading")) · @Lang.T("notes.title")</PageTitle>
+
+<div class="shell flow stagger">
+    @if (loading)
+    {
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("notes.title")</h1>
+    }
+    else if (patient is null)
+    {
+        <p class="eyebrow">@Lang.T("shared.dashboard.notFound.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.dashboard.notFound.title")</h1>
+        <a href="/shared" class="btn--link">@Lang.T("shared.dashboard.back")</a>
+    }
+    else
+    {
+        <p class="eyebrow">@string.Format(Lang.T("notes.eyebrow"), patient.Name)</p>
+        <h1><span class="accent-rule"></span>@Lang.T("notes.title")</h1>
+        <p class="lead">@Lang.T("notes.lead")</p>
+
+        <hr class="divider" aria-hidden="true" />
+
+        <section class="card flow">
+            @* Real <label> tied via for=note-body; renders as the card label
+               style. Replaces the previous double-label setup (paragraph +
+               visually-hidden) that screen readers were announcing twice. *@
+            <label for="note-body" class="card__label">@Lang.T("notes.compose.label")</label>
+            <textarea @ref="composeTextarea" id="note-body" class="text-input" rows="3" maxlength="2000"
+                      @bind="composeBody"
+                      placeholder="@Lang.T("notes.compose.placeholder")"
+                      disabled="@busy"></textarea>
+            @if (composeError is not null)
+            {
+                <p class="error-text" role="alert">@composeError</p>
+            }
+            <div class="action-row">
+                <button type="button" class="btn--primary" @onclick="SubmitAsync" disabled="@(busy || string.IsNullOrWhiteSpace(composeBody))">
+                    <span>@(busy ? Lang.T("saving") : Lang.T("notes.compose.send"))</span>
+                    <span class="arrow" aria-hidden="true">→</span>
+                </button>
+            </div>
+        </section>
+
+        <hr class="divider" aria-hidden="true" />
+
+        @* aria-live so screen readers announce new posts arriving (after
+           SubmitAsync re-loads the list) and disappearances (after delete). *@
+        <div aria-live="polite" aria-atomic="false">
+            @if (notes.Count == 0)
+            {
+                <p class="muted">@Lang.T("notes.empty")</p>
+            }
+            else
+            {
+                if (notes.Count >= 100)
+                {
+                    <p class="muted">@string.Format(Lang.T("notes.count"), notes.Count)</p>
+                }
+                <ul class="note-list">
+                    @foreach (var n in notes)
+                    {
+                        <li class="note-list__item">
+                            <p class="card__label">
+                                @Lang.T("notes.from") <strong>@n.AuthorEmail</strong>
+                                · <time datetime="@n.CreatedAt.ToString("o")">@n.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</time>
+                            </p>
+                            <p class="note-list__body">@n.Body</p>
+                            @if (n.CanDelete)
+                            {
+                                @* Per-row aria-label disambiguates identical "Borrar"
+                                   buttons for screen-reader rotor users. *@
+                                <button type="button" class="btn--quiet"
+                                        aria-label="@string.Format(Lang.T("notes.delete.aria"), n.AuthorEmail, n.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"))"
+                                        @onclick="@(() => DeleteAsync(n.Id))"
+                                        disabled="@busy">
+                                    @Lang.T("notes.delete")
+                                </button>
+                            }
+                        </li>
+                    }
+                </ul>
+            }
+            @if (deleteError is not null)
+            {
+                <p class="error-text" role="alert">@deleteError</p>
+            }
+        </div>
+
+        <hr class="divider divider--ornament" aria-hidden="true" />
+
+        <p class="muted" style="text-align:center;">
+            <a href="@($"/shared/{PatientId}")" class="btn--link">@Lang.T("shared.episodes.back")</a>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    private SharedPatientContextDto? patient;
+    private List<CaregiverNoteDto> notes = new();
+    private bool loading = true;
+    private bool busy = false;
+    private string composeBody = "";
+    private string? composeError;
+    private string? deleteError;
+    private ElementReference composeTextarea;
+    private bool refocusComposePending = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        try
+        {
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+            if (patient is null) return;
+            notes = await Notes.ListAsync(PatientId);
+        }
+        catch
+        {
+            patient = null;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(composeBody)) return;
+        busy = true;
+        composeError = null;
+        deleteError = null;
+        try
+        {
+            await Notes.CreateAsync(PatientId, composeBody.Trim());
+            composeBody = "";
+            notes = await Notes.ListAsync(PatientId);
+            // Return focus to the textarea so a sequence of posts is fluid
+            // for keyboard/SR users — without this the focus is lost to body
+            // after the re-render and the user has to tab back.
+            refocusComposePending = true;
+        }
+        catch
+        {
+            composeError = Lang.T("notes.error.send");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task DeleteAsync(Guid noteId)
+    {
+        busy = true;
+        deleteError = null;
+        try
+        {
+            await Notes.DeleteAsync(PatientId, noteId);
+            notes = await Notes.ListAsync(PatientId);
+        }
+        catch
+        {
+            // Surface to the user (parity with the compose error path) and
+            // announce via the aria-live region wrapping the list.
+            deleteError = Lang.T("notes.error.delete");
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (refocusComposePending)
+        {
+            refocusComposePending = false;
+            try { await composeTextarea.FocusAsync(); } catch { /* ref not attached */ }
+        }
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+}

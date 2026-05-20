@@ -11,6 +11,7 @@ internal sealed class DailyStatusEntryConfiguration : IEntityTypeConfiguration<D
         builder.ToTable("daily_status_entries");
         builder.HasKey(e => e.Id);
         builder.Property(e => e.PatientId).IsRequired();
+        builder.Property(e => e.RecordedByUserId).IsRequired();
         builder.Property(e => e.Status)
             .HasConversion<string>()
             .HasMaxLength(16)
@@ -29,6 +30,11 @@ internal sealed class DailyStatusEntryConfiguration : IEntityTypeConfiguration<D
         builder.HasOne<Patient>()
             .WithMany()
             .HasForeignKey(e => e.PatientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(e => e.RecordedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

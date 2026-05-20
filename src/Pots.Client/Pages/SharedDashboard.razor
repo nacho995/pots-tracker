@@ -1,0 +1,409 @@
+@* Caregiver-facing read-only dashboard for a specific patient.
+   Mirrors the shape of Today.razor (status entries grouped by 24h, latest
+   first) but with no input controls — caregivers in Phase 2 can only
+   observe. Editor-role writing is Phase 5.
+
+   Route: /shared/{PatientId:guid}
+   Data source: SharedPatientClient → /patients/{id}/... endpoints,
+                RLS-gated server-side.
+   Empty state: if the patient row is hidden by RLS (grant revoked, never
+   existed, etc.) the API returns 404 and we redirect back to /shared.
+*@
+
+@page "/shared/{PatientId:guid}"
+@inject AuthClient Auth
+@inject SharedPatientClient SharedPatients
+@inject GrantUpgradeClient Upgrades
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@(patient?.Name ?? Lang.T("shared.dashboard.loading")) — POTS</PageTitle>
+
+<div class="shell flow stagger">
+    @if (loading)
+    {
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.dashboard.loading")</h1>
+    }
+    else if (patient is null)
+    {
+        <p class="eyebrow">@Lang.T("shared.dashboard.notFound.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.dashboard.notFound.title")</h1>
+        <p class="lead">@Lang.T("shared.dashboard.notFound.lead")</p>
+        <a href="/shared" class="btn--link">@Lang.T("shared.dashboard.back")</a>
+    }
+    else
+    {
+        <p class="eyebrow">@Lang.T("shared.dashboard.eyebrow")</p>
+        <h1>
+            <span class="accent-rule"></span>
+            @string.Format(Lang.T("shared.dashboard.title"), patient.Name)
+        </h1>
+
+        @* Phase 5: Editor records status on behalf of the patient.
+           The owner has /today as the canonical entry path; offering a
+           parallel surface on /shared/{ownId} would create a confusing
+           duplicate, so Owner does NOT see this card. Viewer is read-only. *@
+        @if (patient.CallerRole == "Editor")
+        {
+            <section class="card flow">
+                <p class="card__label">@string.Format(Lang.T("shared.record.label"), patient.Name)</p>
+                <p class="muted">@Lang.T("shared.record.help")</p>
+                <div class="status-switch">
+                    <button type="button"
+                            class="status-switch__pill status-switch__pill--green"
+                            @onclick="@(() => RecordOnBehalfAsync("Green"))"
+                            disabled="@recordBusy">
+                        <span class="status-switch__dot"></span>
+                        <span>@Lang.T("today.green")</span>
+                    </button>
+                    <button type="button"
+                            class="status-switch__pill status-switch__pill--orange"
+                            @onclick="@(() => RecordOnBehalfAsync("Orange"))"
+                            disabled="@recordBusy">
+                        <span class="status-switch__dot"></span>
+                        <span>@Lang.T("today.orange")</span>
+                    </button>
+                    <button type="button"
+                            class="status-switch__pill status-switch__pill--red"
+                            @onclick="@(() => RecordOnBehalfAsync("Red"))"
+                            disabled="@recordBusy">
+                        <span class="status-switch__dot"></span>
+                        <span>@Lang.T("today.red")</span>
+                    </button>
+                </div>
+                @if (recordError is not null)
+                {
+                    <p class="error-text" role="alert">@recordError</p>
+                }
+            </section>
+
+            <hr class="divider" aria-hidden="true" />
+        }
+
+        @if (todayHistory.Count == 0)
+        {
+            <p class="lead">@string.Format(Lang.T("shared.dashboard.empty"), patient.Name)</p>
+        }
+        else
+        {
+            var latest = todayHistory[0];
+            <section class="card flow" aria-live="polite">
+                <p class="card__label">@Lang.T("shared.dashboard.latest") · @FormatTime(latest.CreatedAt)</p>
+                <h2>
+                    <span class="status-dot status-dot--@(latest.Status.ToLowerInvariant())"></span>
+                    @StatusLabel(latest.Status)
+                </h2>
+                @if (latest.Posture is not null)
+                {
+                    <p>@Lang.T("today.detail.row.posture") <strong>@PostureLabel(latest.Posture)</strong></p>
+                }
+                @if (!string.IsNullOrEmpty(latest.Activity))
+                {
+                    <p>@Lang.T("today.detail.row.doing") @latest.Activity</p>
+                }
+                @if (!string.IsNullOrEmpty(latest.LocationNote))
+                {
+                    <p>@Lang.T("today.detail.row.place") @latest.LocationNote</p>
+                }
+                @if (!string.IsNullOrEmpty(latest.Note))
+                {
+                    <p>@Lang.T("today.detail.row.note") @latest.Note</p>
+                }
+            </section>
+
+            @if (todayHistory.Count > 1)
+            {
+                <hr class="divider" aria-hidden="true" />
+                <p class="card__label">@Lang.T("shared.dashboard.history")</p>
+                <ul class="status-history">
+                    @foreach (var h in todayHistory.Skip(1))
+                    {
+                        <li class="status-history__item">
+                            <div class="status-history__row">
+                                <span class="status-dot status-dot--@(h.Status.ToLowerInvariant())"></span>
+                                <span class="status-history__time tabular">@FormatTime(h.CreatedAt)</span>
+                                <span class="status-history__label">@StatusLabel(h.Status)</span>
+                            </div>
+                        </li>
+                    }
+                </ul>
+            }
+        }
+
+        <hr class="divider" aria-hidden="true" />
+
+        <p class="card__label">@Lang.T("shared.dashboard.notes")</p>
+        <a href="@($"/shared/{PatientId}/notes")" class="btn--link">@Lang.T("shared.dashboard.notes.cta")</a>
+
+        <hr class="divider" aria-hidden="true" />
+
+        <p class="card__label">@Lang.T("shared.dashboard.episodes")</p>
+        @if (recentEpisodes.Count == 0)
+        {
+            <p class="muted">@Lang.T("shared.dashboard.episodes.empty")</p>
+        }
+        else
+        {
+            <ul class="episode-list">
+                @foreach (var e in recentEpisodes)
+                {
+                    <li class="episode-list__item">
+                        <p class="card__label">@e.StartTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm")</p>
+                        <p><strong>@e.MainSymptom</strong> · @TriggerLabel(e.TriggerSuspected)</p>
+                        @if (e.DurationMinutes is { } d)
+                        {
+                            <p class="muted">@string.Format(Lang.T("shared.dashboard.episodes.duration"), d)</p>
+                        }
+                    </li>
+                }
+            </ul>
+            <a href="@($"/shared/{PatientId}/episodes")" class="btn--link">@Lang.T("shared.dashboard.episodes.all")</a>
+        }
+
+        @* Viewer→Editor upgrade flow. Visible only to Viewers; Editors and
+           Owner-self (owner shouldn't reach this page in practice) skip it. *@
+        @if (patient.CallerRole == "Viewer")
+        {
+            <hr class="divider" aria-hidden="true" />
+            <section class="card flow">
+                <p class="card__label">@Lang.T("shared.upgrade.label")</p>
+                @if (patient.PendingUpgradeRequestId is { } pendingId)
+                {
+                    <h2>@Lang.T("shared.upgrade.pending.title")</h2>
+                    <p>@string.Format(Lang.T("shared.upgrade.pending.body"), patient.Name)</p>
+                    <button type="button" class="btn--ghost" @onclick="@(() => CancelRequestAsync(pendingId))" disabled="@requestBusy">
+                        @(requestBusy ? Lang.T("saving") : Lang.T("shared.upgrade.pending.cancel"))
+                    </button>
+                }
+                else if (!requestComposerOpen)
+                {
+                    <h2>@Lang.T("shared.upgrade.ask.title")</h2>
+                    <p>@string.Format(Lang.T("shared.upgrade.ask.body"), patient.Name)</p>
+                    <button @ref="askButton" type="button" class="btn--primary" style="display:inline-flex;width:auto;" @onclick="OpenComposer">
+                        <span>@Lang.T("shared.upgrade.ask.cta")</span>
+                        <span class="arrow" aria-hidden="true">→</span>
+                    </button>
+                }
+                else
+                {
+                    <h2>@Lang.T("shared.upgrade.compose.title")</h2>
+                    <p class="muted">@string.Format(Lang.T("shared.upgrade.compose.help"), patient.Name)</p>
+                    <label for="upgrade-message" class="visually-hidden">@Lang.T("shared.upgrade.compose.label")</label>
+                    <textarea @ref="messageTextarea" id="upgrade-message" class="text-input" rows="3" maxlength="500"
+                              @bind="requestMessageDraft"
+                              placeholder="@Lang.T("shared.upgrade.compose.placeholder")"></textarea>
+                    @if (requestError is not null)
+                    {
+                        <p class="error-text" role="alert">@requestError</p>
+                    }
+                    <div class="action-row">
+                        <button type="button" class="btn--primary" @onclick="SubmitRequestAsync" disabled="@requestBusy">
+                            <span>@(requestBusy ? Lang.T("saving") : Lang.T("shared.upgrade.compose.send"))</span>
+                            <span class="arrow" aria-hidden="true">→</span>
+                        </button>
+                        <button type="button" class="btn--ghost" @onclick="CloseComposer" disabled="@requestBusy">
+                            @Lang.T("cancel")
+                        </button>
+                    </div>
+                }
+            </section>
+        }
+
+        <hr class="divider divider--ornament" aria-hidden="true" />
+
+        <p class="muted" style="text-align:center;">
+            <a href="/shared" class="btn--link">@Lang.T("shared.dashboard.back")</a>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    private SharedPatientContextDto? patient;
+    private List<DailyStatusDto> todayHistory = new();
+    private List<EpisodeDto> recentEpisodes = new();
+    private bool loading = true;
+    private bool requestBusy = false;
+    private string? requestError = null;
+    private string requestMessageDraft = "";
+    private bool requestComposerOpen = false;
+    // Phase 5: editor-on-behalf status recording.
+    private bool recordBusy = false;
+    private string? recordError = null;
+    // Focus management for WCAG 2.2 AA: opening the composer must move focus
+    // into the textarea so keyboard/screen-reader users aren't dropped at
+    // the top of the page; closing returns focus to the trigger button.
+    private ElementReference messageTextarea;
+    private ElementReference askButton;
+    private bool composerFocusPending = false;
+    private bool askButtonFocusPending = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+
+        try
+        {
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+            if (patient is null) return;
+
+            // Fetch status and episodes in parallel — they're independent.
+            var statusTask = SharedPatients.GetTodayStatusAsync(PatientId);
+            var episodesTask = SharedPatients.GetEpisodesAsync(PatientId, take: 5);
+            await Task.WhenAll(statusTask, episodesTask);
+            todayHistory = await statusTask;
+            recentEpisodes = await episodesTask;
+        }
+        catch
+        {
+            // Leave patient null → render the not-found template. We do not
+            // surface raw errors here — a caregiver who can't see Amelia's
+            // panel today should get a clear "no access / try again" path,
+            // not a stack trace.
+            patient = null;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+
+    private void OpenComposer()
+    {
+        requestComposerOpen = true;
+        requestError = null;
+        composerFocusPending = true;
+    }
+
+    private void CloseComposer()
+    {
+        requestComposerOpen = false;
+        requestError = null;
+        requestMessageDraft = "";
+        askButtonFocusPending = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (composerFocusPending)
+        {
+            composerFocusPending = false;
+            try { await messageTextarea.FocusAsync(); } catch { /* ref not yet attached */ }
+        }
+        if (askButtonFocusPending)
+        {
+            askButtonFocusPending = false;
+            try { await askButton.FocusAsync(); } catch { /* ref not yet attached */ }
+        }
+    }
+
+    private async Task SubmitRequestAsync()
+    {
+        if (patient is null) return;
+        requestBusy = true;
+        requestError = null;
+        try
+        {
+            await Upgrades.RequestAsync(PatientId, string.IsNullOrWhiteSpace(requestMessageDraft) ? null : requestMessageDraft.Trim());
+            // Refresh patient context so the UI flips to "pending" state.
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+            requestComposerOpen = false;
+            requestMessageDraft = "";
+        }
+        catch
+        {
+            // Most likely 409 (already pending) — race with a parallel tab.
+            // Generic message keeps the UI from speculating on backend state.
+            requestError = Lang.T("shared.upgrade.error");
+        }
+        finally
+        {
+            requestBusy = false;
+        }
+    }
+
+    private async Task RecordOnBehalfAsync(string status)
+    {
+        recordBusy = true;
+        recordError = null;
+        try
+        {
+            // EpisodeOccurred stays false here: the /today canonical path
+            // flips it true on Red and immediately routes the patient to
+            // the episode form. The Editor has no on-behalf episode form
+            // yet (deferred to Phase 5.5 / task #10) — flipping the boolean
+            // would claim an episode that has no matching row in the
+            // `episodes` table, confusing the dashboard. Phase 5.5 will
+            // restore the auto-flip together with the on-behalf form.
+            await SharedPatients.RecordStatusAsync(PatientId,
+                new RecordStatusDto(status, EpisodeOccurred: false));
+            todayHistory = await SharedPatients.GetTodayStatusAsync(PatientId);
+        }
+        catch
+        {
+            recordError = Lang.T("shared.record.error");
+        }
+        finally
+        {
+            recordBusy = false;
+        }
+    }
+
+    private async Task CancelRequestAsync(Guid requestId)
+    {
+        requestBusy = true;
+        requestError = null;
+        try
+        {
+            await Upgrades.CancelAsync(requestId);
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+        }
+        catch
+        {
+            requestError = Lang.T("shared.upgrade.error");
+        }
+        finally
+        {
+            requestBusy = false;
+        }
+    }
+
+    private string FormatTime(DateTimeOffset utc) => utc.ToLocalTime().ToString("HH:mm");
+
+    private string StatusLabel(string status) => status switch
+    {
+        "Green" => Lang.T("status.green"),
+        "Orange" => Lang.T("status.orange"),
+        "Red" => Lang.T("status.red"),
+        _ => status,
+    };
+
+    private string PostureLabel(string? posture) => posture switch
+    {
+        "Lying" => Lang.T("posture.lying"),
+        "Sitting" => Lang.T("posture.sitting"),
+        "Standing" => Lang.T("posture.standing"),
+        "Walking" => Lang.T("posture.walking"),
+        "Shower" => Lang.T("posture.shower"),
+        "AfterMeal" => Lang.T("posture.afterMeal"),
+        _ => posture ?? "",
+    };
+
+    // Trigger keys are stored camelCase ("trigger.missedMeal"), matching how
+    // the existing patient pages render them; the enum names are PascalCase.
+    private string TriggerLabel(string trigger) =>
+        trigger.Length == 0 ? trigger
+        : Lang.T("trigger." + char.ToLowerInvariant(trigger[0]) + trigger[1..]);
+}

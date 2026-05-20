@@ -9,7 +9,37 @@
 .shared-card {
     border: 1px solid var(--paper-edge);
     border-radius: var(--radius-soft);
+    overflow: hidden;
+}
+
+.shared-card__link {
+    display: block;
     padding: 1.25rem;
+    color: inherit;
+    text-decoration: none;
+    position: relative;
+    min-height: 48px;
+    transition: background-color 120ms ease;
+}
+
+.shared-card__link:hover,
+.shared-card__link:focus-visible {
+    background-color: var(--paper-tint, rgba(0, 0, 0, 0.03));
+}
+
+.shared-card__link:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.shared-card__chev {
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--accent);
+    font-size: 1.1rem;
+    opacity: 0.6;
 }
 
 .shared-card h2 {

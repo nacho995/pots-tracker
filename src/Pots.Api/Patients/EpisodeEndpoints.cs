@@ -44,7 +44,7 @@ public static class EpisodeEndpoints
         Episode episode;
         try
         {
-            episode = Episode.Create(patient.Id, new EpisodeData
+            episode = Episode.Create(patient.Id, userId, new EpisodeData
             {
                 StartTime = dto.StartTime,
                 DurationMinutes = dto.DurationMinutes,

@@ -1,0 +1,70 @@
+@page "/welcome"
+@inject AuthClient Auth
+@inject RoleContextService Roles
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@Lang.T("welcome.pageTitle")</PageTitle>
+
+<div class="shell flow stagger">
+    <p class="eyebrow">@Lang.T("welcome.eyebrow")</p>
+    <h1><span class="accent-rule"></span>@((MarkupString)Lang.T("welcome.title"))</h1>
+    <p class="lead">@Lang.T("welcome.lead")</p>
+
+    <hr class="divider" aria-hidden="true" />
+
+    <section class="card flow">
+        <p class="card__label">@Lang.T("welcome.patient.label")</p>
+        <h2>@Lang.T("welcome.patient.title")</h2>
+        <p>@Lang.T("welcome.patient.body")</p>
+        <a href="/profile" class="btn--primary" style="display:inline-flex;width:auto;">
+            <span>@Lang.T("welcome.patient.cta")</span>
+            <span class="arrow" aria-hidden="true">→</span>
+        </a>
+    </section>
+
+    <section class="card flow">
+        <p class="card__label">@Lang.T("welcome.caregiver.label")</p>
+        <h2>@Lang.T("welcome.caregiver.title")</h2>
+        <p>@Lang.T("welcome.caregiver.body")</p>
+        <p class="muted">@Lang.T("welcome.caregiver.help")</p>
+    </section>
+
+    <hr class="divider divider--ornament" aria-hidden="true" />
+
+    <p class="muted" style="text-align:center;">
+        <button type="button" class="btn--link" @onclick="SignOutAsync">
+            @Lang.T("welcome.signoutLink")
+        </button>
+    </p>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        try { await Roles.EnsureLoadedAsync(); }
+        catch { /* render the welcome page anyway; user can navigate manually */ }
+        // If the user already has a role (e.g. they came back after an invite
+        // landed), bounce them to where they belong rather than showing the
+        // onboarding choice they already implicitly made.
+        if (Roles.IsPatient) { Nav.NavigateTo("/today", replace: true); return; }
+        if (Roles.HasSharedAccess) { Nav.NavigateTo("/shared", replace: true); return; }
+    }
+
+    private async Task SignOutAsync()
+    {
+        await Auth.SignOutAsync();
+        Nav.NavigateTo("/login", replace: true);
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+}

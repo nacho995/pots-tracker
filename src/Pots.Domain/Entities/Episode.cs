@@ -4,6 +4,10 @@ public sealed class Episode
 {
     public Guid Id { get; private set; }
     public Guid PatientId { get; private set; }
+    // See DailyStatusEntry.RecordedByUserId — same denormalised attribution
+    // pattern. An Editor grantee may register an episode on the owner's
+    // behalf when the owner is unable to write during the event itself.
+    public Guid RecordedByUserId { get; private set; }
     public DateTimeOffset StartTime { get; private set; }
     public int? DurationMinutes { get; private set; }
     public string? MainSymptom { get; private set; }
@@ -20,10 +24,12 @@ public sealed class Episode
 
     private Episode() { }
 
-    public static Episode Create(Guid patientId, EpisodeData d)
+    public static Episode Create(Guid patientId, Guid recordedByUserId, EpisodeData d)
     {
         if (patientId == Guid.Empty)
             throw new DomainException("Patient is required.");
+        if (recordedByUserId == Guid.Empty)
+            throw new DomainException("Recorder is required.");
         if (d.PostureBefore is { } pb && !Enum.IsDefined(pb))
             throw new DomainException("Posture is not valid.");
         if (!Enum.IsDefined(d.TriggerSuspected))
@@ -43,6 +49,7 @@ public sealed class Episode
         {
             Id = Guid.CreateVersion7(),
             PatientId = patientId,
+            RecordedByUserId = recordedByUserId,
             StartTime = d.StartTime ?? DateTimeOffset.UtcNow,
             DurationMinutes = d.DurationMinutes,
             MainSymptom = TrimNullable(d.MainSymptom, 200),

@@ -211,6 +211,9 @@ app.MapPreventiveActionEndpoints();
 app.MapTrendsEndpoints();
 app.MapReportEndpoints();
 app.MapSharedEndpoints();
+app.MapSharedPatientEndpoints();
+app.MapGrantUpgradeRequestEndpoints();
+app.MapCaregiverNoteEndpoints();
 
 // Health probe for Render — must be public, no auth, fast. Render hits this
 // to decide if the instance is alive and routable.

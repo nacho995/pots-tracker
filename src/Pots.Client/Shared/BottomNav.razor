@@ -1,52 +1,111 @@
 @* Sticky bottom navigation rail. Shown on every authenticated page so no
-   page is a dead-end. Four destinations:
-     Hoy        — /today (the heart)
-     Registrar  — quick chooser landing on /log (symptoms / vitals / actions)
-     Tendencias — /trends + /report
-     Yo         — /profile (hub for settings, grants, shared, sign out)
-   Active tab is marked with an ocre underline (matches the editorial accent).
-   Respects safe-area-inset-bottom on iOS.
+   page is a dead-end. The tabs adapt to the user's role:
+
+   - Patient (HasOwnPatient): Hoy / Registrar / Tendencias / Yo. The "Yo"
+     tab routes to /profile which still surfaces /grants and /shared as
+     secondary destinations.
+
+   - Caregiver-only (was invited by another patient but is not a POTS
+     patient herself): Compartidos / Yo. The logging tabs are hidden so a
+     caregiver is never prompted to register symptoms as if she were the
+     patient — that was a clinically and ethically wrong UX bug.
+
+   - HasNoRole (signed in but no patient created and no invitations active,
+     edge case): Yo only. The user belongs on /welcome.
+
+   Active tab is marked with an ocre underline (matches the editorial
+   accent). Respects safe-area-inset-bottom on iOS.
 *@
 
 @inject NavigationManager Nav
 @inject LanguageService Lang
+@inject RoleContextService Roles
 @implements IDisposable
 
-<nav class="bottom-nav" role="navigation" aria-label="Principal">
-    <a href="/today"
-       class="bottom-nav__item @(IsActive("/today") ? "is-active" : "")">
-        <span class="bottom-nav__label">@Lang.T("nav.today")</span>
-    </a>
-    <a href="/log"
-       class="bottom-nav__item @(IsActive("/log") || IsActive("/episode") || IsActive("/rescue") ? "is-active" : "")">
-        <span class="bottom-nav__label">@Lang.T("nav.log")</span>
-    </a>
-    <a href="/trends"
-       class="bottom-nav__item @(IsActive("/trends") || IsActive("/report") ? "is-active" : "")">
-        <span class="bottom-nav__label">@Lang.T("nav.trends")</span>
-    </a>
-    <a href="/profile"
-       class="bottom-nav__item @(IsActive("/profile") || IsActive("/settings") || IsActive("/grants") || IsActive("/shared") ? "is-active" : "")">
-        <span class="bottom-nav__label">@Lang.T("nav.me")</span>
-    </a>
+<nav class="bottom-nav" role="navigation" aria-label="Principal" aria-busy="@(!Roles.IsLoaded)">
+    @if (!Roles.IsLoaded)
+    {
+        @* Render only the always-safe "Yo" tab until we know the role.
+           The previous behavior of defaulting to the patient nav meant a
+           caregiver landing on /shared after sign-in flashed
+           Hoy/Registrar/Tendencias for a beat — the very symptom-logging
+           prompt this phase exists to remove. An empty-ish bar is the
+           lesser of the two evils. Program.cs preloads roles on returning
+           sessions so this branch only renders during the short window
+           after a fresh sign-in or sign-out. *@
+        <a href="/profile"
+           class="bottom-nav__item @(IsActive("/profile") || IsActive("/settings") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.me")</span>
+        </a>
+    }
+    else if (Roles.IsCaregiverOnly)
+    {
+        <a href="/shared"
+           class="bottom-nav__item @(IsActive("/shared") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.shared")</span>
+        </a>
+        <a href="/profile"
+           class="bottom-nav__item @(IsActive("/profile") || IsActive("/settings") || IsActive("/welcome") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.me")</span>
+        </a>
+    }
+    else if (Roles.HasNoRole)
+    {
+        <a href="/welcome"
+           class="bottom-nav__item @(IsActive("/welcome") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.welcome")</span>
+        </a>
+        <a href="/profile"
+           class="bottom-nav__item @(IsActive("/profile") || IsActive("/settings") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.me")</span>
+        </a>
+    }
+    else
+    {
+        @* Default (patient) nav. *@
+        <a href="/today"
+           class="bottom-nav__item @(IsActive("/today") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.today")</span>
+        </a>
+        <a href="/log"
+           class="bottom-nav__item @(IsActive("/log") || IsActive("/episode") || IsActive("/rescue") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.log")</span>
+        </a>
+        <a href="/trends"
+           class="bottom-nav__item @(IsActive("/trends") || IsActive("/report") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.trends")</span>
+        </a>
+        <a href="/profile"
+           class="bottom-nav__item @(IsActive("/profile") || IsActive("/settings") || IsActive("/grants") || IsActive("/shared") ? "is-active" : "")">
+            <span class="bottom-nav__label">@Lang.T("nav.me")</span>
+        </a>
+    }
 </nav>
 
 @code {
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Nav.LocationChanged += OnLocationChanged;
         Lang.LanguageChanged += OnLangChanged;
+        Roles.RoleStateChanged += OnRoleChanged;
+        // Program.cs preloads roles on startup, but a returning-from-sign-in
+        // flow clears the cache via AuthStateChanged. Ensure we have a value
+        // before rendering so the nav doesn't flicker.
+        try { await Roles.EnsureLoadedAsync(); }
+        catch { /* keep patient (default) nav; pages will surface errors */ }
     }
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
         => StateHasChanged();
 
     private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    private void OnRoleChanged() => InvokeAsync(StateHasChanged);
 
     public void Dispose()
     {
         Nav.LocationChanged -= OnLocationChanged;
         Lang.LanguageChanged -= OnLangChanged;
+        Roles.RoleStateChanged -= OnRoleChanged;
     }
 
     private bool IsActive(string prefix)

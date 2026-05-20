@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pots.Infrastructure;
@@ -11,9 +12,11 @@ using Pots.Infrastructure;
 namespace Pots.Infrastructure.Migrations
 {
     [DbContext(typeof(PotsDbContext))]
-    partial class PotsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260520091641_AddGrantUpgradeRequests")]
+    partial class AddGrantUpgradeRequests
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -76,54 +79,6 @@ namespace Pots.Infrastructure.Migrations
                     b.ToTable("audit_log", (string)null);
                 });
 
-            modelBuilder.Entity("Pots.Domain.Entities.CaregiverNote", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<Guid>("AuthorUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("author_user_id");
-
-                    b.Property<string>("Body")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
-                        .HasColumnName("body");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTimeOffset?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("deleted_at");
-
-                    b.Property<Guid?>("DeletedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("deleted_by_user_id");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("patient_id");
-
-                    b.HasKey("Id")
-                        .HasName("pk_caregiver_notes");
-
-                    b.HasIndex("AuthorUserId")
-                        .HasDatabaseName("ix_caregiver_notes_author_user_id");
-
-                    b.HasIndex("DeletedByUserId")
-                        .HasDatabaseName("ix_caregiver_notes_deleted_by_user_id");
-
-                    b.HasIndex("PatientId", "CreatedAt")
-                        .HasDatabaseName("ix_caregiver_notes_patient_created");
-
-                    b.ToTable("caregiver_notes", (string)null);
-                });
-
             modelBuilder.Entity("Pots.Domain.Entities.DailyStatusEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -163,10 +118,6 @@ namespace Pots.Infrastructure.Migrations
                         .HasColumnType("character varying(16)")
                         .HasColumnName("posture");
 
-                    b.Property<Guid>("RecordedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("recorded_by_user_id");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -175,9 +126,6 @@ namespace Pots.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_daily_status_entries");
-
-                    b.HasIndex("RecordedByUserId")
-                        .HasDatabaseName("ix_daily_status_entries_recorded_by_user_id");
 
                     b.HasIndex("PatientId", "CreatedAt")
                         .IsDescending(false, true)
@@ -241,10 +189,6 @@ namespace Pots.Infrastructure.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("prevented_fainting");
 
-                    b.Property<Guid>("RecordedByUserId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("recorded_by_user_id");
-
                     b.Property<int?>("RecoveryTimeMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("recovery_time_minutes");
@@ -261,9 +205,6 @@ namespace Pots.Infrastructure.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_episodes");
-
-                    b.HasIndex("RecordedByUserId")
-                        .HasDatabaseName("ix_episodes_recorded_by_user_id");
 
                     b.HasIndex("PatientId", "StartTime")
                         .IsDescending(false, true)
@@ -1066,29 +1007,6 @@ namespace Pots.Infrastructure.Migrations
                         .HasConstraintName("fk_audit_log_patients_patient_id");
                 });
 
-            modelBuilder.Entity("Pots.Domain.Entities.CaregiverNote", b =>
-                {
-                    b.HasOne("Pots.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("AuthorUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_caregiver_notes_users_author_user_id");
-
-                    b.HasOne("Pots.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("DeletedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_caregiver_notes_users_deleted_by_user_id");
-
-                    b.HasOne("Pots.Domain.Entities.Patient", null)
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_caregiver_notes_patients_patient_id");
-                });
-
             modelBuilder.Entity("Pots.Domain.Entities.DailyStatusEntry", b =>
                 {
                     b.HasOne("Pots.Domain.Entities.Patient", null)
@@ -1097,13 +1015,6 @@ namespace Pots.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_daily_status_entries_patients_patient_id");
-
-                    b.HasOne("Pots.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("RecordedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_daily_status_entries_users_recorded_by_user_id");
                 });
 
             modelBuilder.Entity("Pots.Domain.Entities.Episode", b =>
@@ -1114,13 +1025,6 @@ namespace Pots.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_episodes_patients_patient_id");
-
-                    b.HasOne("Pots.Domain.Entities.User", null)
-                        .WithMany()
-                        .HasForeignKey("RecordedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_episodes_users_recorded_by_user_id");
                 });
 
             modelBuilder.Entity("Pots.Domain.Entities.GrantUpgradeRequest", b =>
