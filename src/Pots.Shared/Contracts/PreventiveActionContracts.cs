@@ -60,3 +60,23 @@ public sealed record UpsertActionsDto
 }
 
 public sealed record ActionLogDto(Guid Id, DateOnly Day);
+
+// Phase 7.2.b — full preventive-actions DTO for caregiver display.
+public sealed record ActionLogFullDto(
+    Guid Id, DateOnly Day, string? RecorderName,
+    int? FluidMl, bool ElectrolyteTaken, bool MorningWaterBeforeStanding, string? UrineColor,
+    bool? SaltTargetReached,
+    bool RegularMeals, bool SkippedBreakfast, bool SmallFrequentMeals,
+    bool AvoidedLargeHighCarbMeal, bool AdequateProtein, bool AlcoholAvoided,
+    string CaffeineLevel,
+    bool CompressionSocks, bool WaistHighCompression, bool AbdominalCompression,
+    int? CompressionHoursWorn,
+    bool RecumbentExercise, bool Walking, bool Strength, bool Stretching, bool PtExercises,
+    int? ExerciseDurationMinutes, string? ExerciseIntensity, string? PostExerciseSymptoms,
+    bool PlannedRestBreaks, bool AvoidedOverexertion, bool UsedActivityPacing,
+    bool AvoidedLongStanding, bool SatDuringShowerCooking, string? MobilityAid,
+    bool AvoidedHeat, bool UsedCoolingVestFan, bool ColdShower,
+    bool AvoidedHotBathSauna, bool StayedInShadeAc,
+    bool SleptEnough, int? SleepQuality, bool ConsistentBedtimes, bool NapTaken, bool? WokeRefreshed,
+    bool MedicationTakenAsPrescribed, bool MissedDose,
+    string? SideEffects, string? NewMedicationOrSupplement, bool? RescueMedicationUsed);

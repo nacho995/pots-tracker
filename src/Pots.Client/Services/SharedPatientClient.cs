@@ -65,4 +65,29 @@ public sealed class SharedPatientClient
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<DailyStatusDto>(cancellationToken: ct);
     }
+
+    // Phase 7.2.b — cross-patient READ for the rest of the patient data.
+    public async Task<List<SymptomLogFullDto>> GetSymptomsAsync(Guid patientId, int take = 30, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/patients/{patientId}/symptoms?take={take}", ct);
+        if (response.StatusCode == HttpStatusCode.NotFound) return new();
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<List<SymptomLogFullDto>>(cancellationToken: ct)) ?? new();
+    }
+
+    public async Task<List<VitalLogFullDto>> GetVitalsAsync(Guid patientId, int take = 30, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/patients/{patientId}/vitals?take={take}", ct);
+        if (response.StatusCode == HttpStatusCode.NotFound) return new();
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<List<VitalLogFullDto>>(cancellationToken: ct)) ?? new();
+    }
+
+    public async Task<List<ActionLogFullDto>> GetActionsAsync(Guid patientId, int take = 30, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/patients/{patientId}/actions?take={take}", ct);
+        if (response.StatusCode == HttpStatusCode.NotFound) return new();
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<List<ActionLogFullDto>>(cancellationToken: ct)) ?? new();
+    }
 }

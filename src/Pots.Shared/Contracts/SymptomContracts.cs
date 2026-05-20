@@ -36,3 +36,18 @@ public sealed record RecordSymptomsDto
 }
 
 public sealed record SymptomLogDto(Guid Id, DateTimeOffset RecordedAt);
+
+// Phase 7.2.b — full DTO surfaced to caregivers when they read a shared
+// patient's symptom history. Includes recorder name for attribution.
+public sealed record SymptomLogFullDto(
+    Guid Id, DateTimeOffset RecordedAt, string? RecorderName,
+    int? Dizziness, int? Palpitations, int? TachycardiaSensation,
+    int? ChestDiscomfort, int? ShortnessOfBreath, int? NearFainting,
+    bool FaintingEpisode, int? BloodPooling,
+    int? BrainFog, int? Headache, int? VisualDisturbance,
+    int? Tremor, int? Weakness, int? Fatigue, int? Sleepiness,
+    int? Nausea, int? AbdominalPain, int? Bloating,
+    string? Bowel, int? AppetiteLevel,
+    int? HeatIntolerance, int? Sweating, int? Chills, int? Flushing, int? ColdExtremities,
+    int? Anxiety, int? Mood,
+    int? AbilityToWork, int? AbilityToWalk, int? SocialTolerance);

@@ -1,0 +1,100 @@
+@page "/shared/{PatientId:guid}/vitals"
+@inject AuthClient Auth
+@inject SharedPatientClient SharedPatients
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@(patient?.Name ?? Lang.T("loading")) · @Lang.T("shared.vitals.title")</PageTitle>
+
+<div class="shell flow stagger">
+    @if (loading)
+    {
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.vitals.title")</h1>
+    }
+    else if (patient is null)
+    {
+        <p class="eyebrow">@Lang.T("shared.dashboard.notFound.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.dashboard.notFound.title")</h1>
+        <a href="/shared" class="btn--link">@Lang.T("shared.dashboard.back")</a>
+    }
+    else
+    {
+        <p class="eyebrow">@string.Format(Lang.T("shared.vitals.eyebrow"), patient.Name)</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.vitals.title")</h1>
+
+        @if (entries.Count == 0)
+        {
+            <p class="lead">@Lang.T("shared.vitals.empty")</p>
+        }
+        else
+        {
+            <ul class="entry-list">
+                @foreach (var v in entries)
+                {
+                    <li class="entry-list__item">
+                        <p class="card__label">
+                            @v.RecordedAt.ToLocalTime().ToString("yyyy-MM-dd · HH:mm")
+                            @if (!string.IsNullOrEmpty(v.RecorderName))
+                            {
+                                <text> · </text><small>@string.Format(Lang.T("status.recordedBy"), v.RecorderName)</small>
+                            }
+                        </p>
+                        <dl class="scale-list">
+                            @if (v.RestingHrBpm is int hr) { <div class="scale-list__row"><dt>@Lang.T("vital.restingHr")</dt><dd><strong>@hr</strong> bpm</dd></div> }
+                            @if (v.StandingHrBpm2Min is int h2) { <div class="scale-list__row"><dt>@Lang.T("vital.standingHr2")</dt><dd><strong>@h2</strong> bpm</dd></div> }
+                            @if (v.StandingHrBpm5Min is int h5) { <div class="scale-list__row"><dt>@Lang.T("vital.standingHr5")</dt><dd><strong>@h5</strong> bpm</dd></div> }
+                            @if (v.StandingHrBpm10Min is int h10) { <div class="scale-list__row"><dt>@Lang.T("vital.standingHr10")</dt><dd><strong>@h10</strong> bpm</dd></div> }
+                            @if (v.BpLyingSystolic is int bls && v.BpLyingDiastolic is int bld) { <div class="scale-list__row"><dt>@Lang.T("vital.bpLying")</dt><dd><strong>@bls / @bld</strong></dd></div> }
+                            @if (v.BpSittingSystolic is int bss && v.BpSittingDiastolic is int bsd) { <div class="scale-list__row"><dt>@Lang.T("vital.bpSitting")</dt><dd><strong>@bss / @bsd</strong></dd></div> }
+                            @if (v.BpStandingSystolic is int bts && v.BpStandingDiastolic is int btd) { <div class="scale-list__row"><dt>@Lang.T("vital.bpStanding")</dt><dd><strong>@bts / @btd</strong></dd></div> }
+                            @if (v.Spo2Percent is int sp) { <div class="scale-list__row"><dt>SpO₂</dt><dd><strong>@sp</strong> %</dd></div> }
+                            @if (v.WeightKg is decimal w) { <div class="scale-list__row"><dt>@Lang.T("vital.weight")</dt><dd><strong>@w</strong> kg</dd></div> }
+                            @if (v.MenstrualCycleDay is int mc) { <div class="scale-list__row"><dt>@Lang.T("vital.menstrualDay")</dt><dd><strong>@mc</strong></dd></div> }
+                            @if (v.SleepDurationMinutes is int sd) { <div class="scale-list__row"><dt>@Lang.T("vital.sleepDuration")</dt><dd><strong>@(sd / 60)h @(sd % 60)m</strong></dd></div> }
+                            @if (v.SleepQuality is int sq) { <div class="scale-list__row"><dt>@Lang.T("vital.sleepQuality")</dt><dd><strong>@sq</strong> / 10</dd></div> }
+                            @if (v.Steps is int st) { <div class="scale-list__row"><dt>@Lang.T("vital.steps")</dt><dd><strong>@st</strong></dd></div> }
+                            @if (v.ExerciseMinutes is int em) { <div class="scale-list__row"><dt>@Lang.T("vital.exercise")</dt><dd><strong>@em</strong> min</dd></div> }
+                            @if (v.AmbientTempC is decimal at) { <div class="scale-list__row"><dt>@Lang.T("vital.ambientTemp")</dt><dd><strong>@at</strong> °C</dd></div> }
+                        </dl>
+                    </li>
+                }
+            </ul>
+        }
+
+        <hr class="divider divider--ornament" aria-hidden="true" />
+        <p class="muted" style="text-align:center;">
+            <a href="@($"/shared/{PatientId}")" class="btn--link">@Lang.T("shared.episodes.back")</a>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    private SharedPatientContextDto? patient;
+    private List<VitalLogFullDto> entries = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        try
+        {
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+            if (patient is null) return;
+            entries = await SharedPatients.GetVitalsAsync(PatientId, take: 50);
+        }
+        catch { patient = null; }
+        finally { loading = false; }
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+}

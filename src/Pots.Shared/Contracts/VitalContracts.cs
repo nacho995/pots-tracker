@@ -26,3 +26,16 @@ public sealed record RecordVitalsDto
 }
 
 public sealed record VitalLogDto(Guid Id, DateTimeOffset RecordedAt);
+
+// Phase 7.2.b — full vitals DTO for caregiver display.
+public sealed record VitalLogFullDto(
+    Guid Id, DateTimeOffset RecordedAt, string? RecorderName,
+    int? RestingHrBpm, int? StandingHrBpm2Min, int? StandingHrBpm5Min, int? StandingHrBpm10Min,
+    int? BpLyingSystolic, int? BpLyingDiastolic,
+    int? BpSittingSystolic, int? BpSittingDiastolic,
+    int? BpStandingSystolic, int? BpStandingDiastolic,
+    int? Spo2Percent, decimal? WeightKg, int? MenstrualCycleDay,
+    int? SleepDurationMinutes, int? SleepQuality,
+    int? Steps, int? ExerciseMinutes,
+    int? TimeUprightMinutes, int? TimeLyingMinutes,
+    decimal? AmbientTempC);

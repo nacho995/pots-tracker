@@ -41,6 +41,153 @@ public static class SharedPatientEndpoints
         // Phase 5: Editor (or owner) records status on behalf of the
         // patient. RLS gates write access via has_patient_edit_access.
         group.MapPost("/status", RecordStatusAsync);
+        // Phase 7.2.b: cross-patient READ for symptoms, vitals, actions.
+        // Viewer-level grant is enough — RLS on these tables uses
+        // has_patient_access, not has_patient_edit_access.
+        group.MapGet("/symptoms", GetSymptomsAsync);
+        group.MapGet("/vitals", GetVitalsAsync);
+        group.MapGet("/actions", GetActionsAsync);
+    }
+
+    private static async Task<IResult> GetSymptomsAsync(
+        Guid patientId,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken,
+        [FromQuery] int take = 30)
+    {
+        var userId = ctx.CurrentUserId
+            ?? throw new InvalidOperationException("Authenticated endpoint without user id.");
+        if (take < 1) take = 1;
+        if (take > 200) take = 200;
+
+        var rows = await db.SymptomLogs
+            .Where(s => s.PatientId == patientId)
+            .OrderByDescending(s => s.RecordedAt)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        var ownerUserId = await db.Patients
+            .Where(p => p.Id == patientId).Select(p => p.OwnerUserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        var nameMap = await ResolveRecorderNamesAsync(db, patientId,
+            rows.Where(r => r.RecordedByUserId != ownerUserId).Select(r => r.RecordedByUserId), cancellationToken);
+
+        var dtos = rows.Select(s => new SymptomLogFullDto(
+            s.Id, s.RecordedAt,
+            s.RecordedByUserId == ownerUserId ? null : nameMap.GetValueOrDefault(s.RecordedByUserId),
+            s.Dizziness, s.Palpitations, s.TachycardiaSensation,
+            s.ChestDiscomfort, s.ShortnessOfBreath, s.NearFainting,
+            s.FaintingEpisode, s.BloodPooling,
+            s.BrainFog, s.Headache, s.VisualDisturbance,
+            s.Tremor, s.Weakness, s.Fatigue, s.Sleepiness,
+            s.Nausea, s.AbdominalPain, s.Bloating,
+            s.Bowel?.ToString(), s.AppetiteLevel,
+            s.HeatIntolerance, s.Sweating, s.Chills, s.Flushing, s.ColdExtremities,
+            s.Anxiety, s.Mood,
+            s.AbilityToWork, s.AbilityToWalk, s.SocialTolerance)).ToList();
+
+        return Results.Ok(dtos);
+    }
+
+    private static async Task<IResult> GetVitalsAsync(
+        Guid patientId,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken,
+        [FromQuery] int take = 30)
+    {
+        if (take < 1) take = 1;
+        if (take > 200) take = 200;
+
+        var rows = await db.VitalSignLogs
+            .Where(v => v.PatientId == patientId)
+            .OrderByDescending(v => v.RecordedAt)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        var ownerUserId = await db.Patients
+            .Where(p => p.Id == patientId).Select(p => p.OwnerUserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        var nameMap = await ResolveRecorderNamesAsync(db, patientId,
+            rows.Where(r => r.RecordedByUserId != ownerUserId).Select(r => r.RecordedByUserId), cancellationToken);
+
+        var dtos = rows.Select(v => new VitalLogFullDto(
+            v.Id, v.RecordedAt,
+            v.RecordedByUserId == ownerUserId ? null : nameMap.GetValueOrDefault(v.RecordedByUserId),
+            v.RestingHrBpm, v.StandingHrBpm2Min, v.StandingHrBpm5Min, v.StandingHrBpm10Min,
+            v.BpLyingSystolic, v.BpLyingDiastolic,
+            v.BpSittingSystolic, v.BpSittingDiastolic,
+            v.BpStandingSystolic, v.BpStandingDiastolic,
+            v.Spo2Percent, v.WeightKg, v.MenstrualCycleDay,
+            v.SleepDurationMinutes, v.SleepQuality,
+            v.Steps, v.ExerciseMinutes,
+            v.TimeUprightMinutes, v.TimeLyingMinutes,
+            v.AmbientTempC)).ToList();
+
+        return Results.Ok(dtos);
+    }
+
+    private static async Task<IResult> GetActionsAsync(
+        Guid patientId,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken,
+        [FromQuery] int take = 30)
+    {
+        if (take < 1) take = 1;
+        if (take > 200) take = 200;
+
+        var rows = await db.PreventiveActionLogs
+            .Where(a => a.PatientId == patientId)
+            .OrderByDescending(a => a.Day)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        var ownerUserId = await db.Patients
+            .Where(p => p.Id == patientId).Select(p => p.OwnerUserId)
+            .FirstOrDefaultAsync(cancellationToken);
+        var nameMap = await ResolveRecorderNamesAsync(db, patientId,
+            rows.Where(r => r.RecordedByUserId != ownerUserId).Select(r => r.RecordedByUserId), cancellationToken);
+
+        var dtos = rows.Select(a => new ActionLogFullDto(
+            a.Id, a.Day,
+            a.RecordedByUserId == ownerUserId ? null : nameMap.GetValueOrDefault(a.RecordedByUserId),
+            a.FluidMl, a.ElectrolyteTaken, a.MorningWaterBeforeStanding, a.UrineColor?.ToString(),
+            a.SaltTargetReached,
+            a.RegularMeals, a.SkippedBreakfast, a.SmallFrequentMeals,
+            a.AvoidedLargeHighCarbMeal, a.AdequateProtein, a.AlcoholAvoided,
+            a.CaffeineLevel.ToString(),
+            a.CompressionSocks, a.WaistHighCompression, a.AbdominalCompression,
+            a.CompressionHoursWorn,
+            a.RecumbentExercise, a.Walking, a.Strength, a.Stretching, a.PtExercises,
+            a.ExerciseDurationMinutes, a.ExerciseIntensity, a.PostExerciseSymptoms,
+            a.PlannedRestBreaks, a.AvoidedOverexertion, a.UsedActivityPacing,
+            a.AvoidedLongStanding, a.SatDuringShowerCooking, a.MobilityAid,
+            a.AvoidedHeat, a.UsedCoolingVestFan, a.ColdShower,
+            a.AvoidedHotBathSauna, a.StayedInShadeAc,
+            a.SleptEnough, a.SleepQuality, a.ConsistentBedtimes, a.NapTaken, a.WokeRefreshed,
+            a.MedicationTakenAsPrescribed, a.MissedDose,
+            a.SideEffects, a.NewMedicationOrSupplement, a.RescueMedicationUsed)).ToList();
+
+        return Results.Ok(dtos);
+    }
+
+    private sealed record EmailRow(Guid UserId, string Email, string? DisplayName);
+
+    private static async Task<Dictionary<Guid, string>> ResolveRecorderNamesAsync(
+        PotsDbContext db, Guid patientId, IEnumerable<Guid> userIds, CancellationToken ct)
+    {
+        var distinct = userIds.Distinct().ToList();
+        if (distinct.Count == 0) return new();
+        var rows = await db.Database
+            .SqlQuery<EmailRow>($"SELECT * FROM list_patient_user_emails({patientId})")
+            .ToListAsync(ct);
+        return rows
+            .Where(r => distinct.Contains(r.UserId))
+            .ToDictionary(
+                r => r.UserId,
+                r => string.IsNullOrWhiteSpace(r.DisplayName) ? r.Email : r.DisplayName!);
     }
 
     private static async Task<IResult> RecordStatusAsync(

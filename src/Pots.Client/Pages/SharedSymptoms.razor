@@ -1,0 +1,153 @@
+@page "/shared/{PatientId:guid}/symptoms"
+@inject AuthClient Auth
+@inject SharedPatientClient SharedPatients
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+@* Phase 7.2.b — caregiver-side read of the patient's full symptom log.
+   All 28+ 0-10 scales rendered. Recorder name shown on entries where the
+   patient was NOT the recorder (Editor on-behalf records). *@
+
+<PageTitle>@(patient?.Name ?? Lang.T("loading")) · @Lang.T("shared.symptoms.title")</PageTitle>
+
+<div class="shell flow stagger">
+    @if (loading)
+    {
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.symptoms.title")</h1>
+    }
+    else if (patient is null)
+    {
+        <p class="eyebrow">@Lang.T("shared.dashboard.notFound.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.dashboard.notFound.title")</h1>
+        <a href="/shared" class="btn--link">@Lang.T("shared.dashboard.back")</a>
+    }
+    else
+    {
+        <p class="eyebrow">@string.Format(Lang.T("shared.symptoms.eyebrow"), patient.Name)</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.symptoms.title")</h1>
+
+        @if (entries.Count == 0)
+        {
+            <p class="lead">@Lang.T("shared.symptoms.empty")</p>
+        }
+        else
+        {
+            <ul class="entry-list">
+                @foreach (var s in entries)
+                {
+                    <li class="entry-list__item">
+                        <p class="card__label">
+                            @s.RecordedAt.ToLocalTime().ToString("yyyy-MM-dd · HH:mm")
+                            @if (!string.IsNullOrEmpty(s.RecorderName))
+                            {
+                                <text> · </text><small>@string.Format(Lang.T("status.recordedBy"), s.RecorderName)</small>
+                            }
+                        </p>
+                        @{ var rows = ScaleRows(s); }
+                        @if (rows.Count == 0)
+                        {
+                            <p class="muted">@Lang.T("shared.symptoms.noScales")</p>
+                        }
+                        else
+                        {
+                            <dl class="scale-list">
+                                @foreach (var r in rows)
+                                {
+                                    <div class="scale-list__row">
+                                        <dt>@r.Label</dt>
+                                        <dd><strong>@r.Value</strong> / 10</dd>
+                                    </div>
+                                }
+                            </dl>
+                        }
+                        @if (s.FaintingEpisode)
+                        {
+                            <p class="muted">⚠ @Lang.T("shared.symptoms.fainting")</p>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        <hr class="divider divider--ornament" aria-hidden="true" />
+        <p class="muted" style="text-align:center;">
+            <a href="@($"/shared/{PatientId}")" class="btn--link">@Lang.T("shared.episodes.back")</a>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    private SharedPatientContextDto? patient;
+    private List<SymptomLogFullDto> entries = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        try
+        {
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+            if (patient is null) return;
+            entries = await SharedPatients.GetSymptomsAsync(PatientId, take: 50);
+        }
+        catch { patient = null; }
+        finally { loading = false; }
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+
+    private sealed record ScaleRow(string Label, int Value);
+
+    private List<ScaleRow> ScaleRows(SymptomLogFullDto s)
+    {
+        var list = new List<ScaleRow>();
+        void Add(string key, int? value)
+        {
+            if (value is int v) list.Add(new ScaleRow(Lang.T(key), v));
+        }
+        // Cardiovascular
+        Add("symptom.dizziness", s.Dizziness);
+        Add("symptom.palpitations", s.Palpitations);
+        Add("symptom.tachycardiaSensation", s.TachycardiaSensation);
+        Add("symptom.chestDiscomfort", s.ChestDiscomfort);
+        Add("symptom.shortnessOfBreath", s.ShortnessOfBreath);
+        Add("symptom.nearFainting", s.NearFainting);
+        Add("symptom.bloodPooling", s.BloodPooling);
+        // Neuro
+        Add("symptom.brainFog", s.BrainFog);
+        Add("symptom.headache", s.Headache);
+        Add("symptom.visualDisturbance", s.VisualDisturbance);
+        Add("symptom.tremor", s.Tremor);
+        Add("symptom.weakness", s.Weakness);
+        Add("symptom.fatigue", s.Fatigue);
+        Add("symptom.sleepiness", s.Sleepiness);
+        // GI
+        Add("symptom.nausea", s.Nausea);
+        Add("symptom.abdominalPain", s.AbdominalPain);
+        Add("symptom.bloating", s.Bloating);
+        Add("symptom.appetiteLevel", s.AppetiteLevel);
+        // Autonomic
+        Add("symptom.heatIntolerance", s.HeatIntolerance);
+        Add("symptom.sweating", s.Sweating);
+        Add("symptom.chills", s.Chills);
+        Add("symptom.flushing", s.Flushing);
+        Add("symptom.coldExtremities", s.ColdExtremities);
+        // Emotional/functional
+        Add("symptom.anxiety", s.Anxiety);
+        Add("symptom.mood", s.Mood);
+        Add("symptom.abilityToWork", s.AbilityToWork);
+        Add("symptom.abilityToWalk", s.AbilityToWalk);
+        Add("symptom.socialTolerance", s.SocialTolerance);
+        return list;
+    }
+}

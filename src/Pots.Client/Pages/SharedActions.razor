@@ -1,0 +1,132 @@
+@page "/shared/{PatientId:guid}/actions"
+@inject AuthClient Auth
+@inject SharedPatientClient SharedPatients
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@(patient?.Name ?? Lang.T("loading")) · @Lang.T("shared.actions.title")</PageTitle>
+
+<div class="shell flow stagger">
+    @if (loading)
+    {
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.actions.title")</h1>
+    }
+    else if (patient is null)
+    {
+        <p class="eyebrow">@Lang.T("shared.dashboard.notFound.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.dashboard.notFound.title")</h1>
+        <a href="/shared" class="btn--link">@Lang.T("shared.dashboard.back")</a>
+    }
+    else
+    {
+        <p class="eyebrow">@string.Format(Lang.T("shared.actions.eyebrow"), patient.Name)</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.actions.title")</h1>
+
+        @if (entries.Count == 0)
+        {
+            <p class="lead">@Lang.T("shared.actions.empty")</p>
+        }
+        else
+        {
+            <ul class="entry-list">
+                @foreach (var a in entries)
+                {
+                    <li class="entry-list__item">
+                        <p class="card__label">
+                            @a.Day.ToString("yyyy-MM-dd")
+                            @if (!string.IsNullOrEmpty(a.RecorderName))
+                            {
+                                <text> · </text><small>@string.Format(Lang.T("status.recordedBy"), a.RecorderName)</small>
+                            }
+                        </p>
+                        @{ var checks = BuildChecks(a); }
+                        <ul class="check-list">
+                            @foreach (var c in checks)
+                            {
+                                <li class="@(c.Done ? "is-done" : "is-pending")">
+                                    <span class="check-list__mark">@(c.Done ? "✓" : "·")</span>
+                                    <span>@c.Label</span>
+                                </li>
+                            }
+                        </ul>
+                        @if (a.FluidMl is int ml) { <p class="muted">@Lang.T("action.fluidMl"): <strong>@ml</strong> ml</p> }
+                        @if (a.CompressionHoursWorn is int ch) { <p class="muted">@Lang.T("action.compressionHours"): <strong>@ch</strong> h</p> }
+                        @if (a.ExerciseDurationMinutes is int ex) { <p class="muted">@Lang.T("action.exerciseMin"): <strong>@ex</strong> min</p> }
+                        @if (!string.IsNullOrEmpty(a.MobilityAid)) { <p class="muted">@Lang.T("action.mobilityAid"): @a.MobilityAid</p> }
+                        @if (!string.IsNullOrEmpty(a.SideEffects)) { <p class="muted">@Lang.T("action.sideEffects"): @a.SideEffects</p> }
+                    </li>
+                }
+            </ul>
+        }
+
+        <hr class="divider divider--ornament" aria-hidden="true" />
+        <p class="muted" style="text-align:center;">
+            <a href="@($"/shared/{PatientId}")" class="btn--link">@Lang.T("shared.episodes.back")</a>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    private SharedPatientContextDto? patient;
+    private List<ActionLogFullDto> entries = new();
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        try
+        {
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+            if (patient is null) return;
+            entries = await SharedPatients.GetActionsAsync(PatientId, take: 30);
+        }
+        catch { patient = null; }
+        finally { loading = false; }
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+
+    private sealed record CheckItem(string Label, bool Done);
+
+    private List<CheckItem> BuildChecks(ActionLogFullDto a) => new()
+    {
+        new(Lang.T("action.electrolyte"), a.ElectrolyteTaken),
+        new(Lang.T("action.morningWater"), a.MorningWaterBeforeStanding),
+        new(Lang.T("action.regularMeals"), a.RegularMeals),
+        new(Lang.T("action.smallFrequentMeals"), a.SmallFrequentMeals),
+        new(Lang.T("action.adequateProtein"), a.AdequateProtein),
+        new(Lang.T("action.alcoholAvoided"), a.AlcoholAvoided),
+        new(Lang.T("action.compressionSocks"), a.CompressionSocks),
+        new(Lang.T("action.waistHigh"), a.WaistHighCompression),
+        new(Lang.T("action.abdominal"), a.AbdominalCompression),
+        new(Lang.T("action.recumbent"), a.RecumbentExercise),
+        new(Lang.T("action.walking"), a.Walking),
+        new(Lang.T("action.strength"), a.Strength),
+        new(Lang.T("action.stretching"), a.Stretching),
+        new(Lang.T("action.ptExercises"), a.PtExercises),
+        new(Lang.T("action.plannedBreaks"), a.PlannedRestBreaks),
+        new(Lang.T("action.avoidedOverexertion"), a.AvoidedOverexertion),
+        new(Lang.T("action.activityPacing"), a.UsedActivityPacing),
+        new(Lang.T("action.avoidLongStanding"), a.AvoidedLongStanding),
+        new(Lang.T("action.satShower"), a.SatDuringShowerCooking),
+        new(Lang.T("action.avoidedHeat"), a.AvoidedHeat),
+        new(Lang.T("action.coolingFan"), a.UsedCoolingVestFan),
+        new(Lang.T("action.coldShower"), a.ColdShower),
+        new(Lang.T("action.avoidedBath"), a.AvoidedHotBathSauna),
+        new(Lang.T("action.shadeAc"), a.StayedInShadeAc),
+        new(Lang.T("action.sleptEnough"), a.SleptEnough),
+        new(Lang.T("action.consistentBedtimes"), a.ConsistentBedtimes),
+        new(Lang.T("action.nap"), a.NapTaken),
+        new(Lang.T("action.medsAsPrescribed"), a.MedicationTakenAsPrescribed),
+    };
+}

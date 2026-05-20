@@ -146,8 +146,14 @@
 
         <hr class="divider" aria-hidden="true" />
 
-        <p class="card__label">@Lang.T("shared.dashboard.notes")</p>
-        <a href="@($"/shared/{PatientId}/notes")" class="btn--link">@Lang.T("shared.dashboard.notes.cta")</a>
+        @* Phase 7.2.b — links to the rest of the patient's data. *@
+        <p class="card__label">@Lang.T("shared.dashboard.moreData")</p>
+        <ul class="link-grid">
+            <li><a href="@($"/shared/{PatientId}/symptoms")" class="btn--link">@Lang.T("shared.dashboard.symptoms.cta") →</a></li>
+            <li><a href="@($"/shared/{PatientId}/vitals")" class="btn--link">@Lang.T("shared.dashboard.vitals.cta") →</a></li>
+            <li><a href="@($"/shared/{PatientId}/actions")" class="btn--link">@Lang.T("shared.dashboard.actions.cta") →</a></li>
+            <li><a href="@($"/shared/{PatientId}/notes")" class="btn--link">@Lang.T("shared.dashboard.notes.cta") →</a></li>
+        </ul>
 
         <hr class="divider" aria-hidden="true" />
 
