@@ -4,6 +4,7 @@ public sealed class VitalSignLog
 {
     public Guid Id { get; private set; }
     public Guid PatientId { get; private set; }
+    public Guid RecordedByUserId { get; private set; }
     public DateTimeOffset RecordedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -33,10 +34,12 @@ public sealed class VitalSignLog
 
     private VitalSignLog() { }
 
-    public static VitalSignLog Create(Guid patientId, VitalSignData d)
+    public static VitalSignLog Create(Guid patientId, Guid recordedByUserId, VitalSignData d)
     {
         if (patientId == Guid.Empty)
             throw new DomainException("Patient is required.");
+        if (recordedByUserId == Guid.Empty)
+            throw new DomainException("Recorder is required.");
 
         BpmCheck(d.RestingHrBpm);
         BpmCheck(d.StandingHrBpm2Min);
@@ -68,6 +71,7 @@ public sealed class VitalSignLog
         {
             Id = Guid.CreateVersion7(),
             PatientId = patientId,
+            RecordedByUserId = recordedByUserId,
             RecordedAt = d.RecordedAt ?? now,
             CreatedAt = now,
             RestingHrBpm = d.RestingHrBpm,

@@ -11,6 +11,7 @@ internal sealed class SymptomLogConfiguration : IEntityTypeConfiguration<Symptom
         builder.ToTable("symptom_logs");
         builder.HasKey(e => e.Id);
         builder.Property(e => e.PatientId).IsRequired();
+        builder.Property(e => e.RecordedByUserId).IsRequired();
         builder.Property(e => e.RecordedAt);
         builder.Property(e => e.CreatedAt);
         builder.Property(e => e.Bowel)
@@ -22,6 +23,11 @@ internal sealed class SymptomLogConfiguration : IEntityTypeConfiguration<Symptom
         builder.HasOne<Patient>()
             .WithMany()
             .HasForeignKey(e => e.PatientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(e => e.RecordedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

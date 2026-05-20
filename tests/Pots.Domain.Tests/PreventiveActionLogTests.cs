@@ -9,13 +9,14 @@ namespace Pots.Domain.Tests;
 public sealed class PreventiveActionLogTests
 {
     private static readonly Guid Patient = Guid.NewGuid();
+    private static readonly Guid Recorder = Guid.NewGuid();
     private static readonly DateOnly Day = DateOnly.FromDateTime(DateTime.UtcNow);
 
     [Fact]
     public void Create_RejectsSaltField_WhenSaltTargetDisabled()
     {
         var ex = Assert.Throws<DomainException>(() =>
-            PreventiveActionLog.Create(Patient, Day, saltTargetAllowed: false,
+            PreventiveActionLog.Create(Patient, Recorder, Day, saltTargetAllowed: false,
                 new PreventiveActionData { SaltTargetReached = true }));
         Assert.Contains("salt", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -23,7 +24,7 @@ public sealed class PreventiveActionLogTests
     [Fact]
     public void Create_AcceptsSaltField_WhenSaltTargetEnabled()
     {
-        var log = PreventiveActionLog.Create(Patient, Day, saltTargetAllowed: true,
+        var log = PreventiveActionLog.Create(Patient, Recorder, Day, saltTargetAllowed: true,
             new PreventiveActionData { SaltTargetReached = true });
         Assert.True(log.SaltTargetReached);
     }
@@ -31,9 +32,9 @@ public sealed class PreventiveActionLogTests
     [Fact]
     public void Create_AcceptsNullSaltField_RegardlessOfGate()
     {
-        var disabled = PreventiveActionLog.Create(Patient, Day, saltTargetAllowed: false,
+        var disabled = PreventiveActionLog.Create(Patient, Recorder, Day, saltTargetAllowed: false,
             new PreventiveActionData { SaltTargetReached = null });
-        var enabled = PreventiveActionLog.Create(Patient, Day, saltTargetAllowed: true,
+        var enabled = PreventiveActionLog.Create(Patient, Recorder, Day, saltTargetAllowed: true,
             new PreventiveActionData { SaltTargetReached = null });
         Assert.Null(disabled.SaltTargetReached);
         Assert.Null(enabled.SaltTargetReached);
@@ -42,7 +43,21 @@ public sealed class PreventiveActionLogTests
     [Fact]
     public void Create_DefaultsCaffeineLevel_None()
     {
-        var log = PreventiveActionLog.Create(Patient, Day, false, new PreventiveActionData());
+        var log = PreventiveActionLog.Create(Patient, Recorder, Day, false, new PreventiveActionData());
         Assert.Equal(CaffeineLevel.None, log.CaffeineLevel);
+    }
+
+    [Fact]
+    public void Create_RejectsEmptyRecorder()
+    {
+        Assert.Throws<DomainException>(() =>
+            PreventiveActionLog.Create(Patient, Guid.Empty, Day, false, new PreventiveActionData()));
+    }
+
+    [Fact]
+    public void Create_StampsRecorder()
+    {
+        var log = PreventiveActionLog.Create(Patient, Recorder, Day, false, new PreventiveActionData());
+        Assert.Equal(Recorder, log.RecordedByUserId);
     }
 }

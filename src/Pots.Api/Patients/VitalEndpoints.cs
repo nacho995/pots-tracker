@@ -31,7 +31,7 @@ public static class VitalEndpoints
         VitalSignLog log;
         try
         {
-            log = VitalSignLog.Create(patient.Id, new VitalSignData
+            log = VitalSignLog.Create(patient.Id, userId, new VitalSignData
             {
                 RecordedAt = dto.RecordedAt,
                 RestingHrBpm = dto.RestingHrBpm,

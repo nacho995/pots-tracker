@@ -100,7 +100,7 @@ public static class PreventiveActionEndpoints
         {
             if (existing is null)
             {
-                var entry = PreventiveActionLog.Create(patient.Id, dto.Day, saltTargetAllowed, data);
+                var entry = PreventiveActionLog.Create(patient.Id, userId, dto.Day, saltTargetAllowed, data);
                 db.PreventiveActionLogs.Add(entry);
                 existing = entry;
             }

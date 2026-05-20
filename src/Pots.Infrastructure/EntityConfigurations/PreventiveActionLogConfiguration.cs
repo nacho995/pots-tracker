@@ -11,6 +11,7 @@ internal sealed class PreventiveActionLogConfiguration : IEntityTypeConfiguratio
         builder.ToTable("preventive_action_logs");
         builder.HasKey(e => e.Id);
         builder.Property(e => e.PatientId).IsRequired();
+        builder.Property(e => e.RecordedByUserId).IsRequired();
         builder.Property(e => e.Day).IsRequired();
         builder.Property(e => e.CreatedAt);
         builder.Property(e => e.UpdatedAt);
@@ -35,6 +36,11 @@ internal sealed class PreventiveActionLogConfiguration : IEntityTypeConfiguratio
         builder.HasOne<Patient>()
             .WithMany()
             .HasForeignKey(e => e.PatientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(e => e.RecordedByUserId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

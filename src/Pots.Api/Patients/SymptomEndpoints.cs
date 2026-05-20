@@ -39,7 +39,7 @@ public static class SymptomEndpoints
         SymptomLog log;
         try
         {
-            log = SymptomLog.Create(patient.Id, new SymptomData
+            log = SymptomLog.Create(patient.Id, userId, new SymptomData
             {
                 RecordedAt = dto.RecordedAt,
                 Dizziness = dto.Dizziness,

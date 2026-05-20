@@ -8,6 +8,10 @@ public sealed class SymptomLog
 {
     public Guid Id { get; private set; }
     public Guid PatientId { get; private set; }
+    // Phase 7.2: who recorded this entry. Owner self = patient.owner_user_id;
+    // Editor on-behalf = the Editor grantee's user id. Doctor Report
+    // surfaces this as "Registrado por X".
+    public Guid RecordedByUserId { get; private set; }
     public DateTimeOffset RecordedAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
@@ -53,10 +57,12 @@ public sealed class SymptomLog
 
     private SymptomLog() { }
 
-    public static SymptomLog Create(Guid patientId, SymptomData d)
+    public static SymptomLog Create(Guid patientId, Guid recordedByUserId, SymptomData d)
     {
         if (patientId == Guid.Empty)
             throw new DomainException("Patient is required.");
+        if (recordedByUserId == Guid.Empty)
+            throw new DomainException("Recorder is required.");
 
         ScaleCheck(d.Dizziness);
         ScaleCheck(d.Palpitations);
@@ -94,6 +100,7 @@ public sealed class SymptomLog
         {
             Id = Guid.CreateVersion7(),
             PatientId = patientId,
+            RecordedByUserId = recordedByUserId,
             RecordedAt = d.RecordedAt ?? now,
             CreatedAt = now,
             Dizziness = d.Dizziness,

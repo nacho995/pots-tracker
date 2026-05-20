@@ -7,6 +7,7 @@ public sealed class PreventiveActionLog
 {
     public Guid Id { get; private set; }
     public Guid PatientId { get; private set; }
+    public Guid RecordedByUserId { get; private set; }
     public DateOnly Day { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset UpdatedAt { get; private set; }
@@ -76,10 +77,12 @@ public sealed class PreventiveActionLog
 
     private PreventiveActionLog() { }
 
-    public static PreventiveActionLog Create(Guid patientId, DateOnly day, bool saltTargetAllowed, PreventiveActionData d)
+    public static PreventiveActionLog Create(Guid patientId, Guid recordedByUserId, DateOnly day, bool saltTargetAllowed, PreventiveActionData d)
     {
         if (patientId == Guid.Empty)
             throw new DomainException("Patient is required.");
+        if (recordedByUserId == Guid.Empty)
+            throw new DomainException("Recorder is required.");
 
         if (d.SaltTargetReached is not null && !saltTargetAllowed)
             throw new DomainException("Salt target field is only available when patient has a clinician-prescribed salt target enabled in settings.");
@@ -91,6 +94,7 @@ public sealed class PreventiveActionLog
         {
             Id = Guid.CreateVersion7(),
             PatientId = patientId,
+            RecordedByUserId = recordedByUserId,
             Day = day,
             CreatedAt = now,
             UpdatedAt = now,
