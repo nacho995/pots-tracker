@@ -1,0 +1,99 @@
+@page "/shared/{PatientId:guid}/report"
+@inject AuthClient Auth
+@inject SharedPatientClient SharedPatients
+@inject LanguageService Lang
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@(patient?.Name ?? Lang.T("loading")) · @Lang.T("shared.report.title")</PageTitle>
+
+<div class="shell flow stagger">
+    @if (loading)
+    {
+        <p class="eyebrow">@Lang.T("loading")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.report.title")</h1>
+    }
+    else if (patient is null || report is null)
+    {
+        <p class="eyebrow">@Lang.T("shared.dashboard.notFound.eyebrow")</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.dashboard.notFound.title")</h1>
+        <a href="/shared" class="btn--link">@Lang.T("shared.dashboard.back")</a>
+    }
+    else
+    {
+        <p class="eyebrow">@string.Format(Lang.T("shared.report.eyebrow"), report.PatientName)</p>
+        <h1><span class="accent-rule"></span>@Lang.T("shared.report.title")</h1>
+        <p class="muted">@report.From.ToLocalTime().ToString("yyyy-MM-dd") — @report.To.ToLocalTime().ToString("yyyy-MM-dd")</p>
+        <p class="lead">@Lang.T("shared.report.disclaimer")</p>
+
+        <section class="card flow">
+            <p class="card__label">@Lang.T("shared.report.summary")</p>
+            <dl class="scale-list">
+                <div class="scale-list__row"><dt>@Lang.T("today.green")</dt><dd><strong>@report.GreenCount</strong></dd></div>
+                <div class="scale-list__row"><dt>@Lang.T("today.orange")</dt><dd><strong>@report.OrangeCount</strong></dd></div>
+                <div class="scale-list__row"><dt>@Lang.T("today.red")</dt><dd><strong>@report.RedCount</strong></dd></div>
+                <div class="scale-list__row"><dt>@Lang.T("shared.trends.episodes")</dt><dd><strong>@report.EpisodeCount</strong></dd></div>
+            </dl>
+        </section>
+
+        @if (report.TopSymptoms.Count > 0)
+        {
+            <section class="card flow">
+                <p class="card__label">@Lang.T("shared.report.topSymptoms")</p>
+                <dl class="scale-list">
+                    @foreach (var s in report.TopSymptoms)
+                    {
+                        <div class="scale-list__row"><dt>@s.Name</dt><dd><strong>@s.Average</strong> / 10</dd></div>
+                    }
+                </dl>
+            </section>
+        }
+
+        @if (report.TopTriggers.Count > 0)
+        {
+            <section class="card flow">
+                <p class="card__label">@Lang.T("shared.report.topTriggers")</p>
+                <ul class="check-list">
+                    @foreach (var t in report.TopTriggers)
+                    {
+                        <li>@t.Trigger · <strong>@t.Count</strong></li>
+                    }
+                </ul>
+            </section>
+        }
+
+        <hr class="divider divider--ornament" aria-hidden="true" />
+        <p class="muted" style="text-align:center;">
+            <a href="@($"/shared/{PatientId}")" class="btn--link">@Lang.T("shared.episodes.back")</a>
+        </p>
+    }
+</div>
+
+@code {
+    [Parameter] public Guid PatientId { get; set; }
+
+    private SharedPatientContextDto? patient;
+    private DoctorReportDto? report;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.LanguageChanged += OnLangChanged;
+        if (string.IsNullOrEmpty(Auth.CachedJwt))
+        {
+            Nav.NavigateTo("/login", replace: true);
+            return;
+        }
+        try
+        {
+            patient = await SharedPatients.GetPatientAsync(PatientId);
+            if (patient is null) return;
+            report = await SharedPatients.GetReportAsync(PatientId);
+        }
+        catch { patient = null; }
+        finally { loading = false; }
+    }
+
+    private void OnLangChanged() => InvokeAsync(StateHasChanged);
+    public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
+}

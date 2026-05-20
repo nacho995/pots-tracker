@@ -90,4 +90,25 @@ public sealed class SharedPatientClient
         response.EnsureSuccessStatusCode();
         return (await response.Content.ReadFromJsonAsync<List<ActionLogFullDto>>(cancellationToken: ct)) ?? new();
     }
+
+    // Phase 7.2.c — cross-patient trends + report mirrors.
+    public async Task<TrendsDto?> GetTrendsAsync(Guid patientId, int days = 30, CancellationToken ct = default)
+    {
+        var response = await _http.GetAsync($"/patients/{patientId}/trends?days={days}", ct);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<TrendsDto>(cancellationToken: ct);
+    }
+
+    public async Task<DoctorReportDto?> GetReportAsync(Guid patientId, DateTimeOffset? from = null, DateTimeOffset? to = null, CancellationToken ct = default)
+    {
+        var qs = new List<string>();
+        if (from is { } f) qs.Add($"from={Uri.EscapeDataString(f.ToString("o"))}");
+        if (to   is { } t) qs.Add($"to={Uri.EscapeDataString(t.ToString("o"))}");
+        var url = $"/patients/{patientId}/report" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+        var response = await _http.GetAsync(url, ct);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<DoctorReportDto>(cancellationToken: ct);
+    }
 }

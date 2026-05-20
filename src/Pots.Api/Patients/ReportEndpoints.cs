@@ -18,7 +18,9 @@ public static class ReportEndpoints
         group.MapGet("csv", GetCsvAsync);
     }
 
-    private static async Task<DoctorReportDto> ComputeAsync(
+    // Internal so SharedPatientEndpoints can reuse the report computation
+    // when serving caregiver-side cross-patient reads (Phase 7.2.c).
+    internal static async Task<DoctorReportDto> ComputeAsync(
         PotsDbContext db,
         Guid patientId,
         string patientName,
@@ -26,26 +28,33 @@ public static class ReportEndpoints
         DateTimeOffset to,
         CancellationToken cancellationToken)
     {
+        // Phase 7.2.c: filter explicitly by patient.Id so cross-patient
+        // callers (a caregiver with access to multiple patients) see only
+        // the requested one. Pre-Phase-7.2 these queries relied on RLS to
+        // narrow to the caller's accessible set, which worked when the
+        // caller was the owner of exactly one patient. Now that grantees
+        // span multiple patients, the explicit filter is the floor.
         var statuses = await db.DailyStatusEntries
-            .Where(e => e.CreatedAt >= from && e.CreatedAt <= to)
+            .Where(e => e.PatientId == patientId && e.CreatedAt >= from && e.CreatedAt <= to)
             .Select(e => new { e.Status, e.Note, e.CreatedAt })
             .ToListAsync(cancellationToken);
 
         var episodes = await db.Episodes
-            .Where(e => e.StartTime >= from && e.StartTime <= to)
+            .Where(e => e.PatientId == patientId && e.StartTime >= from && e.StartTime <= to)
             .Select(e => new { e.HrDuringBpm, e.TriggerSuspected, e.PreventedFainting, e.Note })
             .ToListAsync(cancellationToken);
 
         var vitals = await db.VitalSignLogs
-            .Where(e => e.RecordedAt >= from && e.RecordedAt <= to)
+            .Where(e => e.PatientId == patientId && e.RecordedAt >= from && e.RecordedAt <= to)
             .ToListAsync(cancellationToken);
 
         var symptoms = await db.SymptomLogs
-            .Where(e => e.RecordedAt >= from && e.RecordedAt <= to)
+            .Where(e => e.PatientId == patientId && e.RecordedAt >= from && e.RecordedAt <= to)
             .ToListAsync(cancellationToken);
 
         var actions = await db.PreventiveActionLogs
-            .Where(e => e.Day >= DateOnly.FromDateTime(from.UtcDateTime)
+            .Where(e => e.PatientId == patientId
+                     && e.Day >= DateOnly.FromDateTime(from.UtcDateTime)
                      && e.Day <= DateOnly.FromDateTime(to.UtcDateTime))
             .ToListAsync(cancellationToken);
 

@@ -21,24 +21,37 @@ public static class TrendsEndpoints
         CancellationToken cancellationToken,
         [FromQuery] int days = 30)
     {
+        var userId = ctx.CurrentUserId
+            ?? throw new InvalidOperationException("Authenticated endpoint without user id.");
+        var patient = await db.Patients.FirstOrDefaultAsync(p => p.OwnerUserId == userId, cancellationToken);
+        if (patient is null) return Results.NotFound(new { code = "patient.not_provisioned" });
+        return Results.Ok(await ComputeAsync(db, patient.Id, days, cancellationToken));
+    }
+
+    // Internal so SharedPatientEndpoints can call this for caregiver-side
+    // cross-patient trends (Phase 7.2.c).
+    internal static async Task<TrendsDto> ComputeAsync(
+        PotsDbContext db, Guid patientId, int days, CancellationToken cancellationToken)
+    {
         if (days < 1) days = 1;
         if (days > 365) days = 365;
         var since = DateTimeOffset.UtcNow.AddDays(-days);
         var sinceDay = DateOnly.FromDateTime(since.UtcDateTime);
 
-        // RLS scopes all queries to the caller's accessible patients.
+        // Phase 7.2.c: explicit patient.Id filter so a caregiver with
+        // access to multiple patients gets trends for ONE patient at a time.
         var statuses = await db.DailyStatusEntries
-            .Where(e => e.CreatedAt >= since)
+            .Where(e => e.PatientId == patientId && e.CreatedAt >= since)
             .Select(e => new { e.Status, e.CreatedAt, e.EpisodeOccurred })
             .ToListAsync(cancellationToken);
 
         var episodes = await db.Episodes
-            .Where(e => e.StartTime >= since)
+            .Where(e => e.PatientId == patientId && e.StartTime >= since)
             .Select(e => new { e.StartTime, e.TriggerSuspected })
             .ToListAsync(cancellationToken);
 
         var symptoms = await db.SymptomLogs
-            .Where(e => e.RecordedAt >= since)
+            .Where(e => e.PatientId == patientId && e.RecordedAt >= since)
             .Select(e => new
             {
                 e.RecordedAt,
@@ -49,7 +62,7 @@ public static class TrendsEndpoints
             .ToListAsync(cancellationToken);
 
         var vitals = await db.VitalSignLogs
-            .Where(e => e.RecordedAt >= since)
+            .Where(e => e.PatientId == patientId && e.RecordedAt >= since)
             .Select(e => new
             {
                 e.RecordedAt,
@@ -60,7 +73,7 @@ public static class TrendsEndpoints
             .ToListAsync(cancellationToken);
 
         var actions = await db.PreventiveActionLogs
-            .Where(e => e.Day >= sinceDay)
+            .Where(e => e.PatientId == patientId && e.Day >= sinceDay)
             .ToListAsync(cancellationToken);
 
         var greenCount  = statuses.Count(s => s.Status == DailyStatusKind.Green);
@@ -226,7 +239,7 @@ public static class TrendsEndpoints
             .Take(5)
             .ToList();
 
-        return Results.Ok(new TrendsDto(
+        return new TrendsDto(
             RangeDays: days,
             GreenCount: greenCount,
             OrangeCount: orangeCount,
@@ -248,7 +261,7 @@ public static class TrendsEndpoints
             AmbientTempVsSymptoms: tempVsSymptoms,
             MenstrualPhaseVsSymptoms: phaseVsSymptoms,
             ExerciseTolerance: exTolerance,
-            ActionsAssociatedWithFewerReds: actionsVsRed));
+            ActionsAssociatedWithFewerReds: actionsVsRed);
     }
 
     private static double? Avg(IEnumerable<double> values)

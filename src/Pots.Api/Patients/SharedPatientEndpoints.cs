@@ -47,6 +47,276 @@ public static class SharedPatientEndpoints
         group.MapGet("/symptoms", GetSymptomsAsync);
         group.MapGet("/vitals", GetVitalsAsync);
         group.MapGet("/actions", GetActionsAsync);
+        // Phase 7.2.c: Editor (or Owner) writes the rest of the patient's
+        // data on her behalf. RLS gates via has_patient_edit_access. No
+        // DELETE exposed — Editor mistakes shouldn't be irreversible.
+        group.MapPost("/symptoms", RecordSymptomsAsync);
+        group.MapPost("/vitals", RecordVitalsAsync);
+        group.MapPost("/actions", UpsertActionsAsync);
+        group.MapPost("/episodes", CreateEpisodeAsync);
+        // Phase 7.2.c: caregiver-side READ of aggregated trends + report,
+        // explicitly filtered by patient.Id so a multi-patient grantee
+        // sees only the requested patient.
+        group.MapGet("/trends", GetTrendsAsync);
+        group.MapGet("/report", GetReportAsync);
+    }
+
+    private static async Task<IResult> GetTrendsAsync(
+        Guid patientId,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken,
+        [FromQuery] int days = 30)
+    {
+        var patientExists = await db.Patients.AnyAsync(p => p.Id == patientId, cancellationToken);
+        if (!patientExists) return Results.NotFound();
+        var trends = await TrendsEndpoints.ComputeAsync(db, patientId, days, cancellationToken);
+        return Results.Ok(trends);
+    }
+
+    private static async Task<IResult> GetReportAsync(
+        Guid patientId,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken,
+        [FromQuery] DateTimeOffset? from = null,
+        [FromQuery] DateTimeOffset? to = null)
+    {
+        var patient = await db.Patients.FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
+        if (patient is null) return Results.NotFound();
+        var rangeTo = to ?? DateTimeOffset.UtcNow;
+        var rangeFrom = from ?? rangeTo.AddDays(-30);
+        var report = await ReportEndpoints.ComputeAsync(db, patient.Id, patient.Name, rangeFrom, rangeTo, cancellationToken);
+        return Results.Ok(report);
+    }
+
+    private static async Task<IResult> RecordSymptomsAsync(
+        Guid patientId,
+        [FromBody] RecordSymptomsDto dto,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken)
+    {
+        var userId = ctx.CurrentUserId
+            ?? throw new InvalidOperationException("Authenticated endpoint without user id.");
+
+        var patient = await db.Patients.FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
+        if (patient is null) return Results.NotFound();
+
+        GiBowelState? bowel = null;
+        if (!string.IsNullOrWhiteSpace(dto.Bowel))
+        {
+            if (!Enum.TryParse<GiBowelState>(dto.Bowel, ignoreCase: false, out var b) || !Enum.IsDefined(b))
+                return Results.BadRequest(new { code = "symptoms.bowel_invalid" });
+            bowel = b;
+        }
+
+        SymptomLog log;
+        try
+        {
+            log = SymptomLog.Create(patient.Id, userId, new SymptomData
+            {
+                RecordedAt = dto.RecordedAt,
+                Dizziness = dto.Dizziness, Palpitations = dto.Palpitations,
+                TachycardiaSensation = dto.TachycardiaSensation, ChestDiscomfort = dto.ChestDiscomfort,
+                ShortnessOfBreath = dto.ShortnessOfBreath, NearFainting = dto.NearFainting,
+                FaintingEpisode = dto.FaintingEpisode, BloodPooling = dto.BloodPooling,
+                BrainFog = dto.BrainFog, Headache = dto.Headache, VisualDisturbance = dto.VisualDisturbance,
+                Tremor = dto.Tremor, Weakness = dto.Weakness, Fatigue = dto.Fatigue, Sleepiness = dto.Sleepiness,
+                Nausea = dto.Nausea, AbdominalPain = dto.AbdominalPain, Bloating = dto.Bloating,
+                Bowel = bowel, AppetiteLevel = dto.AppetiteLevel,
+                HeatIntolerance = dto.HeatIntolerance, Sweating = dto.Sweating,
+                Chills = dto.Chills, Flushing = dto.Flushing, ColdExtremities = dto.ColdExtremities,
+                Anxiety = dto.Anxiety, Mood = dto.Mood,
+                AbilityToWork = dto.AbilityToWork, AbilityToWalk = dto.AbilityToWalk,
+                SocialTolerance = dto.SocialTolerance,
+            });
+        }
+        catch (DomainException ex) { return Results.BadRequest(new { code = "symptoms.invalid", message = ex.Message }); }
+
+        db.SymptomLogs.Add(log);
+        db.AuditLog.Add(AuditLogEntry.Record(
+            userId,
+            patient.OwnerUserId == userId ? "symptoms.recorded" : "symptoms.recorded_by_editor",
+            nameof(SymptomLog), log.Id, patient.Id, null));
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.Created($"/patients/{patientId}/symptoms/{log.Id}", new SymptomLogDto(log.Id, log.RecordedAt));
+    }
+
+    private static async Task<IResult> RecordVitalsAsync(
+        Guid patientId,
+        [FromBody] RecordVitalsDto dto,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken)
+    {
+        var userId = ctx.CurrentUserId
+            ?? throw new InvalidOperationException("Authenticated endpoint without user id.");
+
+        var patient = await db.Patients.FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
+        if (patient is null) return Results.NotFound();
+
+        VitalSignLog log;
+        try
+        {
+            log = VitalSignLog.Create(patient.Id, userId, new VitalSignData
+            {
+                RecordedAt = dto.RecordedAt,
+                RestingHrBpm = dto.RestingHrBpm,
+                StandingHrBpm2Min = dto.StandingHrBpm2Min, StandingHrBpm5Min = dto.StandingHrBpm5Min,
+                StandingHrBpm10Min = dto.StandingHrBpm10Min,
+                BpLyingSystolic = dto.BpLyingSystolic, BpLyingDiastolic = dto.BpLyingDiastolic,
+                BpSittingSystolic = dto.BpSittingSystolic, BpSittingDiastolic = dto.BpSittingDiastolic,
+                BpStandingSystolic = dto.BpStandingSystolic, BpStandingDiastolic = dto.BpStandingDiastolic,
+                Spo2Percent = dto.Spo2Percent, WeightKg = dto.WeightKg,
+                MenstrualCycleDay = dto.MenstrualCycleDay,
+                SleepDurationMinutes = dto.SleepDurationMinutes, SleepQuality = dto.SleepQuality,
+                Steps = dto.Steps, ExerciseMinutes = dto.ExerciseMinutes,
+                TimeUprightMinutes = dto.TimeUprightMinutes, TimeLyingMinutes = dto.TimeLyingMinutes,
+                AmbientTempC = dto.AmbientTempC,
+            });
+        }
+        catch (DomainException ex) { return Results.BadRequest(new { code = "vitals.invalid", message = ex.Message }); }
+
+        db.VitalSignLogs.Add(log);
+        db.AuditLog.Add(AuditLogEntry.Record(
+            userId,
+            patient.OwnerUserId == userId ? "vitals.recorded" : "vitals.recorded_by_editor",
+            nameof(VitalSignLog), log.Id, patient.Id, null));
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.Created($"/patients/{patientId}/vitals/{log.Id}", new VitalLogDto(log.Id, log.RecordedAt));
+    }
+
+    private static async Task<IResult> UpsertActionsAsync(
+        Guid patientId,
+        [FromBody] UpsertActionsDto dto,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken)
+    {
+        var userId = ctx.CurrentUserId
+            ?? throw new InvalidOperationException("Authenticated endpoint without user id.");
+
+        var patient = await db.Patients.FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
+        if (patient is null) return Results.NotFound();
+
+        // Salt gate (CLAUDE.md §2): salt fields only allowed if patient has
+        // clinician-prescribed salt target on PatientTargets.
+        var targets = await db.PatientTargets.FirstOrDefaultAsync(t => t.PatientId == patient.Id, cancellationToken);
+        var saltTargetAllowed = targets?.SaltTargetEnabled ?? false;
+
+        if (!Enum.TryParse<CaffeineLevel>(dto.CaffeineLevel, ignoreCase: false, out var caffeine) || !Enum.IsDefined(caffeine))
+            return Results.BadRequest(new { code = "actions.caffeine_invalid" });
+
+        UrineColor? urine = null;
+        if (!string.IsNullOrWhiteSpace(dto.UrineColor))
+        {
+            if (!Enum.TryParse<UrineColor>(dto.UrineColor, ignoreCase: false, out var u) || !Enum.IsDefined(u))
+                return Results.BadRequest(new { code = "actions.urine_invalid" });
+            urine = u;
+        }
+
+        var data = new PreventiveActionData
+        {
+            FluidMl = dto.FluidMl, ElectrolyteTaken = dto.ElectrolyteTaken,
+            MorningWaterBeforeStanding = dto.MorningWaterBeforeStanding, UrineColor = urine,
+            SaltTargetReached = dto.SaltTargetReached,
+            RegularMeals = dto.RegularMeals, SkippedBreakfast = dto.SkippedBreakfast,
+            SmallFrequentMeals = dto.SmallFrequentMeals, AvoidedLargeHighCarbMeal = dto.AvoidedLargeHighCarbMeal,
+            AdequateProtein = dto.AdequateProtein, AlcoholAvoided = dto.AlcoholAvoided,
+            CaffeineLevel = caffeine,
+            CompressionSocks = dto.CompressionSocks, WaistHighCompression = dto.WaistHighCompression,
+            AbdominalCompression = dto.AbdominalCompression, CompressionHoursWorn = dto.CompressionHoursWorn,
+            RecumbentExercise = dto.RecumbentExercise, Walking = dto.Walking, Strength = dto.Strength,
+            Stretching = dto.Stretching, PtExercises = dto.PtExercises,
+            ExerciseDurationMinutes = dto.ExerciseDurationMinutes, ExerciseIntensity = dto.ExerciseIntensity,
+            PostExerciseSymptoms = dto.PostExerciseSymptoms,
+            PlannedRestBreaks = dto.PlannedRestBreaks, AvoidedOverexertion = dto.AvoidedOverexertion,
+            UsedActivityPacing = dto.UsedActivityPacing, AvoidedLongStanding = dto.AvoidedLongStanding,
+            SatDuringShowerCooking = dto.SatDuringShowerCooking, MobilityAid = dto.MobilityAid,
+            AvoidedHeat = dto.AvoidedHeat, UsedCoolingVestFan = dto.UsedCoolingVestFan,
+            ColdShower = dto.ColdShower, AvoidedHotBathSauna = dto.AvoidedHotBathSauna,
+            StayedInShadeAc = dto.StayedInShadeAc,
+            SleptEnough = dto.SleptEnough, SleepQuality = dto.SleepQuality,
+            ConsistentBedtimes = dto.ConsistentBedtimes, NapTaken = dto.NapTaken,
+            WokeRefreshed = dto.WokeRefreshed,
+            MedicationTakenAsPrescribed = dto.MedicationTakenAsPrescribed,
+            MissedDose = dto.MissedDose, SideEffects = dto.SideEffects,
+            NewMedicationOrSupplement = dto.NewMedicationOrSupplement,
+            RescueMedicationUsed = dto.RescueMedicationUsed,
+        };
+
+        var existing = await db.PreventiveActionLogs
+            .FirstOrDefaultAsync(e => e.PatientId == patient.Id && e.Day == dto.Day, cancellationToken);
+        try
+        {
+            if (existing is null)
+            {
+                var entry = PreventiveActionLog.Create(patient.Id, userId, dto.Day, saltTargetAllowed, data);
+                db.PreventiveActionLogs.Add(entry);
+                existing = entry;
+            }
+            else
+            {
+                existing.Update(saltTargetAllowed, data);
+            }
+        }
+        catch (DomainException ex) { return Results.BadRequest(new { code = "actions.invalid", message = ex.Message }); }
+
+        db.AuditLog.Add(AuditLogEntry.Record(
+            userId,
+            patient.OwnerUserId == userId ? "actions.upserted" : "actions.upserted_by_editor",
+            nameof(PreventiveActionLog), existing.Id, patient.Id, null));
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.Ok(new ActionLogDto(existing.Id, existing.Day));
+    }
+
+    private static async Task<IResult> CreateEpisodeAsync(
+        Guid patientId,
+        [FromBody] CreateEpisodeDto dto,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken)
+    {
+        var userId = ctx.CurrentUserId
+            ?? throw new InvalidOperationException("Authenticated endpoint without user id.");
+
+        var patient = await db.Patients.FirstOrDefaultAsync(p => p.Id == patientId, cancellationToken);
+        if (patient is null) return Results.NotFound();
+
+        PostureKind? posture = null;
+        if (!string.IsNullOrWhiteSpace(dto.PostureBefore))
+        {
+            if (!Enum.TryParse<PostureKind>(dto.PostureBefore, ignoreCase: false, out var p) || !Enum.IsDefined(p))
+                return Results.BadRequest(new { code = "episode.posture_invalid" });
+            posture = p;
+        }
+        if (!Enum.TryParse<EpisodeTrigger>(dto.TriggerSuspected, ignoreCase: false, out var trigger) || !Enum.IsDefined(trigger))
+            return Results.BadRequest(new { code = "episode.trigger_invalid" });
+
+        Episode episode;
+        try
+        {
+            episode = Episode.Create(patient.Id, userId, new EpisodeData
+            {
+                StartTime = dto.StartTime, DurationMinutes = dto.DurationMinutes,
+                MainSymptom = dto.MainSymptom, PostureBefore = posture, TriggerSuspected = trigger,
+                HrDuringBpm = dto.HrDuringBpm,
+                BpDuringSystolic = dto.BpDuringSystolic, BpDuringDiastolic = dto.BpDuringDiastolic,
+                ActionTaken = dto.ActionTaken, RecoveryTimeMinutes = dto.RecoveryTimeMinutes,
+                PreventedFainting = dto.PreventedFainting, Note = dto.Note,
+            });
+        }
+        catch (DomainException ex) { return Results.BadRequest(new { code = "episode.invalid", message = ex.Message }); }
+
+        db.Episodes.Add(episode);
+        db.AuditLog.Add(AuditLogEntry.Record(
+            userId,
+            patient.OwnerUserId == userId ? "episode.created" : "episode.created_by_editor",
+            nameof(Episode), episode.Id, patient.Id,
+            $"{{\"trigger\":\"{trigger}\"}}"));
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.Created($"/patients/{patientId}/episodes/{episode.Id}", new { id = episode.Id });
     }
 
     private static async Task<IResult> GetSymptomsAsync(
