@@ -83,4 +83,16 @@ public sealed class PatientGrant
         if (Role == GrantRole.Editor) return;
         Role = GrantRole.Editor;
     }
+
+    // Phase 7.1: the patient owner can directly set a grant's role,
+    // promoting Viewer→Editor or demoting Editor→Viewer without going
+    // through the upgrade-request flow. Idempotent.
+    public void SetRole(GrantRole role)
+    {
+        if (!IsActive)
+            throw new DomainException("Cannot change role on a revoked grant.");
+        if (!Enum.IsDefined(role))
+            throw new DomainException("Role is not valid.");
+        Role = role;
+    }
 }

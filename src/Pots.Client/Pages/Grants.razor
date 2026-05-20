@@ -108,9 +108,32 @@
                                 @Lang.T("grants.list.since") @g.GrantedAt.ToLocalTime().ToString("yyyy-MM-dd")
                             </p>
                         </div>
-                        <button class="btn--quiet" @onclick="@(() => RevokeAsync(g.Id))" disabled="@busy">
-                            @Lang.T("grants.list.revoke")
-                        </button>
+                        <div class="action-row">
+                            @* Phase 7.1: direct toggle Viewer↔Editor from the
+                               owner side. Complementary to the
+                               request-upgrade flow, which is still useful
+                               for caregiver-initiated promotion when the
+                               owner is offline. *@
+                            @if (g.Role == "Viewer")
+                            {
+                                <button class="btn--link"
+                                        @onclick="@(() => SetRoleAsync(g.Id, "Editor"))"
+                                        disabled="@busy">
+                                    @Lang.T("grants.list.promote")
+                                </button>
+                            }
+                            else
+                            {
+                                <button class="btn--link"
+                                        @onclick="@(() => SetRoleAsync(g.Id, "Viewer"))"
+                                        disabled="@busy">
+                                    @Lang.T("grants.list.demote")
+                                </button>
+                            }
+                            <button class="btn--quiet" @onclick="@(() => RevokeAsync(g.Id))" disabled="@busy">
+                                @Lang.T("grants.list.revoke")
+                            </button>
+                        </div>
                     </li>
                 }
             </ul>
@@ -196,6 +219,14 @@
     {
         busy = true;
         try { await GrantClient.RevokeAsync(grantId); await LoadAsync(); }
+        finally { busy = false; }
+    }
+
+    private async Task SetRoleAsync(Guid grantId, string role)
+    {
+        busy = true;
+        try { await GrantClient.SetRoleAsync(grantId, role); await LoadAsync(); }
+        catch { /* fail silent: keep list */ }
         finally { busy = false; }
     }
 

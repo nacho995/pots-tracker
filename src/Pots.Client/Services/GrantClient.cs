@@ -42,5 +42,14 @@ public sealed class GrantClient
         response.EnsureSuccessStatusCode();
     }
 
+    // Phase 7.1: owner-driven direct toggle Viewer↔Editor.
+    public async Task SetRoleAsync(Guid grantId, string role, CancellationToken ct = default)
+    {
+        var response = await _http.PutAsJsonAsync(
+            $"/me/patient/grants/{grantId}/role",
+            new SetGrantRoleDto(role), ct);
+        response.EnsureSuccessStatusCode();
+    }
+
     private sealed record ProblemBody(string? Code);
 }

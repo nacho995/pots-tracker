@@ -248,6 +248,8 @@ public static class Strings
             ["grants.list.roleViewer"] = "Solo ver",
             ["grants.list.since"] = "Desde",
             ["grants.list.revoke"] = "Revocar",
+            ["grants.list.promote"] = "Cambiar a editor",
+            ["grants.list.demote"] = "Cambiar a solo lectura",
             ["grants.back"] = "← Volver a tu perfil",
 
             // Shared (with you)
@@ -944,6 +946,8 @@ public static class Strings
             ["grants.list.roleViewer"] = "Lecture seule",
             ["grants.list.since"] = "Depuis",
             ["grants.list.revoke"] = "Révoquer",
+            ["grants.list.promote"] = "Passer en éditeur",
+            ["grants.list.demote"] = "Passer en lecture seule",
             ["grants.back"] = "← Retour à ton profil",
 
             // Shared (with you)
@@ -1607,6 +1611,8 @@ public static class Strings
             ["grants.list.roleViewer"] = "View only",
             ["grants.list.since"] = "Since",
             ["grants.list.revoke"] = "Revoke",
+            ["grants.list.promote"] = "Make editor",
+            ["grants.list.demote"] = "Make view-only",
             ["grants.back"] = "← Back to your profile",
 
             // Shared (with you)

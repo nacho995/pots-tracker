@@ -19,7 +19,53 @@ public static class GrantEndpoints
 
         group.MapGet("", ListGrantsAsync);
         group.MapPost("", InviteAsync);
+        group.MapPut("{grantId:guid}/role", SetRoleAsync);
         group.MapDelete("{grantId:guid}", RevokeAsync);
+    }
+
+    // Phase 7.1: owner-driven direct role toggle. Viewer→Editor and
+    // Editor→Viewer without the upgrade-request handshake. The
+    // upgrade-request flow stays in place for caregiver-initiated requests
+    // (and is still useful when Amelia is not online to toggle manually).
+    private static async Task<IResult> SetRoleAsync(
+        Guid grantId,
+        [FromBody] SetGrantRoleDto dto,
+        PotsDbContext db,
+        IUserContext ctx,
+        CancellationToken cancellationToken)
+    {
+        var userId = ctx.CurrentUserId
+            ?? throw new InvalidOperationException("Authenticated endpoint without user id.");
+
+        if (!Enum.TryParse<GrantRole>(dto.Role, ignoreCase: false, out var role) ||
+            !Enum.IsDefined(role))
+        {
+            return Results.BadRequest(new { code = "grant.invalid_role" });
+        }
+
+        var patient = await db.Patients.FirstOrDefaultAsync(p => p.OwnerUserId == userId, cancellationToken);
+        if (patient is null) return Results.NotFound(new { code = "patient.not_provisioned" });
+
+        var grant = await db.PatientGrants.FirstOrDefaultAsync(
+            g => g.Id == grantId && g.PatientId == patient.Id, cancellationToken);
+        if (grant is null) return Results.NotFound();
+        if (!grant.IsActive) return Results.Conflict(new { code = "grant.revoked" });
+
+        var prevRole = grant.Role;
+        try { grant.SetRole(role); }
+        catch (DomainException ex) { return Results.BadRequest(new { code = "grant.invalid", message = ex.Message }); }
+
+        if (prevRole != role)
+        {
+            db.AuditLog.Add(AuditLogEntry.Record(
+                userId,
+                role == GrantRole.Editor ? "grant.role_upgraded" : "grant.role_downgraded",
+                nameof(PatientGrant), grant.Id, patient.Id,
+                $"{{\"from\":\"{prevRole}\",\"to\":\"{role}\"}}"));
+        }
+        await db.SaveChangesAsync(cancellationToken);
+
+        return Results.NoContent();
     }
 
     private static async Task<IResult> ListGrantsAsync(
