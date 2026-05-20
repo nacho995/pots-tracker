@@ -111,4 +111,32 @@ public sealed class SharedPatientClient
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<DoctorReportDto>(cancellationToken: ct);
     }
+
+    // Phase 7.2.d — Editor-side WRITE methods. Mirror /me/* shape but
+    // target /patients/{id}/* so the recorder is stamped as the Editor,
+    // not the owner. RLS gates write access via has_patient_edit_access.
+    public async Task RecordSymptomsAsync(Guid patientId, RecordSymptomsDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync($"/patients/{patientId}/symptoms", dto, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task RecordVitalsAsync(Guid patientId, RecordVitalsDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync($"/patients/{patientId}/vitals", dto, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task UpsertActionsAsync(Guid patientId, UpsertActionsDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync($"/patients/{patientId}/actions", dto, ct);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<EpisodeDto?> CreateEpisodeAsync(Guid patientId, CreateEpisodeDto dto, CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync($"/patients/{patientId}/episodes", dto, ct);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<EpisodeDto>(cancellationToken: ct);
+    }
 }

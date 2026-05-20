@@ -50,6 +50,13 @@
             <section class="card flow">
                 <p class="card__label">@string.Format(Lang.T("shared.record.label"), patient.Name)</p>
                 <p class="muted">@Lang.T("shared.record.help")</p>
+                <ul class="link-grid">
+                    <li><a href="@($"/shared/{PatientId}/log/symptoms")" class="btn--link">@Lang.T("shared.editor.logSymptoms") →</a></li>
+                    <li><a href="@($"/shared/{PatientId}/log/vitals")" class="btn--link">@Lang.T("shared.editor.logVitals") →</a></li>
+                    <li><a href="@($"/shared/{PatientId}/log/actions")" class="btn--link">@Lang.T("shared.editor.logActions") →</a></li>
+                    <li><a href="@($"/shared/{PatientId}/episode/new")" class="btn--link">@Lang.T("shared.editor.logEpisode") →</a></li>
+                </ul>
+                <p class="muted">@Lang.T("shared.editor.quickStatus")</p>
                 <div class="status-switch">
                     <button type="button"
                             class="status-switch__pill status-switch__pill--green"

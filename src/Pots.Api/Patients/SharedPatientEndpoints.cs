@@ -316,7 +316,13 @@ public static class SharedPatientEndpoints
             nameof(Episode), episode.Id, patient.Id,
             $"{{\"trigger\":\"{trigger}\"}}"));
         await db.SaveChangesAsync(cancellationToken);
-        return Results.Created($"/patients/{patientId}/episodes/{episode.Id}", new { id = episode.Id });
+        var created = new EpisodeDto(
+            episode.Id, episode.StartTime, episode.DurationMinutes, episode.MainSymptom,
+            episode.PostureBefore?.ToString(), episode.TriggerSuspected.ToString(),
+            episode.HrDuringBpm, episode.BpDuringSystolic, episode.BpDuringDiastolic,
+            episode.ActionTaken, episode.RecoveryTimeMinutes, episode.PreventedFainting,
+            episode.Note, episode.CreatedAt);
+        return Results.Created($"/patients/{patientId}/episodes/{episode.Id}", created);
     }
 
     private static async Task<IResult> GetSymptomsAsync(

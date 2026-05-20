@@ -746,6 +746,14 @@ public static class Strings
             ["shared.report.topSymptoms"] = "Síntomas más reportados",
             ["shared.report.topTriggers"] = "Desencadenantes más frecuentes",
 
+            // Phase 7.2.d — Editor logging UI
+            ["shared.editor.logSymptoms"] = "Registrar síntomas",
+            ["shared.editor.logVitals"] = "Registrar vitales",
+            ["shared.editor.logActions"] = "Registrar acciones del día",
+            ["shared.editor.logEpisode"] = "Registrar episodio completo",
+            ["shared.editor.quickStatus"] = "O un estado rápido:",
+            ["shared.editor.backToPanel"] = "Volver al panel",
+
             ["shared.symptoms.title"] = "Síntomas",
             ["shared.symptoms.eyebrow"] = "Síntomas de {0}",
             ["shared.symptoms.empty"] = "Sin entradas de síntomas todavía.",

@@ -1,6 +1,8 @@
 @page "/log/symptoms"
+@page "/shared/{PatientId:guid}/log/symptoms"
 @inject AuthClient Auth
 @inject SymptomClient SymptomClient
+@inject SharedPatientClient SharedPatients
 @inject NavigationManager Nav
 @inject LanguageService Lang
 @implements IDisposable
@@ -15,8 +17,8 @@
         <h1><span class="accent-rule"></span>@Lang.T("symptoms.saved.title")</h1>
         <p class="lead">@Lang.T("symptoms.saved.lead")</p>
         <div class="action-row">
-            <a href="/today" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;">
-                <span>@Lang.T("common.backToToday")</span>
+            <a href="@BackHref" class="btn--primary" style="display:inline-flex;align-items:center;justify-content:center;gap:0.5em;text-decoration:none;">
+                <span>@Lang.T(BackLabelKey)</span>
                 <span class="arrow" aria-hidden="true">→</span>
             </a>
             <button class="btn--ghost" @onclick="Reset">@Lang.T("symptoms.saved.again")</button>
@@ -114,6 +116,14 @@
     private bool saved;
     private string? errorMessage;
 
+    // Phase 7.2.d: dual-route page. If PatientId is set, we're an Editor
+    // recording on behalf of a shared patient; otherwise it's the patient
+    // recording on her own /me/symptoms.
+    [Parameter] public Guid? PatientId { get; set; }
+    private bool IsEditorMode => PatientId.HasValue;
+    private string BackHref => IsEditorMode ? $"/shared/{PatientId}" : "/today";
+    private string BackLabelKey => IsEditorMode ? "shared.editor.backToPanel" : "common.backToToday";
+
     protected override void OnInitialized()
     {
         Lang.LanguageChanged += OnLangChanged;
@@ -133,7 +143,7 @@
         busy = true;
         try
         {
-            await SymptomClient.RecordAsync(new RecordSymptomsDto
+            var dto = new RecordSymptomsDto
             {
                 Dizziness = data.Dizziness,
                 Palpitations = data.Palpitations,
@@ -165,7 +175,9 @@
                 AbilityToWork = data.AbilityToWork,
                 AbilityToWalk = data.AbilityToWalk,
                 SocialTolerance = data.SocialTolerance,
-            });
+            };
+            if (IsEditorMode) await SharedPatients.RecordSymptomsAsync(PatientId!.Value, dto);
+            else await SymptomClient.RecordAsync(dto);
             saved = true;
         }
         catch (HttpRequestException)

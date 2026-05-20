@@ -1,6 +1,8 @@
 @page "/log/vitals"
+@page "/shared/{PatientId:guid}/log/vitals"
 @inject AuthClient Auth
 @inject VitalClient VitalClient
+@inject SharedPatientClient SharedPatients
 @inject NavigationManager Nav
 @inject LanguageService Lang
 @implements IDisposable
@@ -142,13 +144,16 @@
 
     public void Dispose() => Lang.LanguageChanged -= OnLangChanged;
 
+    [Parameter] public Guid? PatientId { get; set; }
+    private bool IsEditorMode => PatientId.HasValue;
+
     private async Task SaveAsync()
     {
         errorMessage = null;
         busy = true;
         try
         {
-            await VitalClient.RecordAsync(new RecordVitalsDto
+            var dto = new RecordVitalsDto
             {
                 RestingHrBpm = form.RestingHrBpm,
                 StandingHrBpm2Min = form.StandingHrBpm2Min,
@@ -170,7 +175,9 @@
                 TimeUprightMinutes = form.TimeUprightMinutes,
                 TimeLyingMinutes = form.TimeLyingMinutes,
                 AmbientTempC = form.AmbientTempC,
-            });
+            };
+            if (IsEditorMode) await SharedPatients.RecordVitalsAsync(PatientId!.Value, dto);
+            else await VitalClient.RecordAsync(dto);
             saved = true;
         }
         catch (HttpRequestException)

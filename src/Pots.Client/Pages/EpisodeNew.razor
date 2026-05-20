@@ -1,6 +1,8 @@
 @page "/episode/new"
+@page "/shared/{PatientId:guid}/episode/new"
 @inject AuthClient Auth
 @inject EpisodeClient EpisodeClient
+@inject SharedPatientClient SharedPatients
 @inject NavigationManager Nav
 @inject LanguageService Lang
 @implements IDisposable
@@ -153,6 +155,8 @@
     private string? errorMessage;
     private EpisodeDto? saved;
 
+    [Parameter] public Guid? PatientId { get; set; }
+
     protected override void OnInitialized()
     {
         Lang.LanguageChanged += OnLangChanged;
@@ -185,7 +189,9 @@
                 RecoveryTimeMinutes: recoveryMinutes,
                 PreventedFainting: preventedFainting,
                 Note: string.IsNullOrWhiteSpace(note) ? null : note);
-            saved = await EpisodeClient.CreateAsync(dto);
+            saved = PatientId.HasValue
+                ? await SharedPatients.CreateEpisodeAsync(PatientId.Value, dto)
+                : await EpisodeClient.CreateAsync(dto);
         }
         catch (HttpRequestException)
         {

@@ -1,7 +1,9 @@
 @page "/log/actions"
+@page "/shared/{PatientId:guid}/log/actions"
 @inject AuthClient Auth
 @inject ActionClient ActionClient
 @inject TargetsClient TargetsClient
+@inject SharedPatientClient SharedPatients
 @inject NavigationManager Nav
 @inject LanguageService Lang
 @implements IDisposable
@@ -163,6 +165,8 @@
     private bool saltTargetEnabled = false;
     private bool busy;
     private bool saved;
+
+    [Parameter] public Guid? PatientId { get; set; }
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
@@ -240,7 +244,8 @@
                 NewMedicationOrSupplement = string.IsNullOrWhiteSpace(form.NewMedicationOrSupplement) ? null : form.NewMedicationOrSupplement,
                 RescueMedicationUsed = rescueMedYes,
             };
-            await ActionClient.UpsertAsync(dto);
+            if (PatientId.HasValue) await SharedPatients.UpsertActionsAsync(PatientId.Value, dto);
+            else await ActionClient.UpsertAsync(dto);
             saved = true;
         }
         catch (HttpRequestException)
