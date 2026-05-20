@@ -150,18 +150,15 @@
     private async Task LoadAsync()
     {
         loading = true;
-        try
-        {
-            // Grants list + pending upgrade inbox are independent: fetch in
-            // parallel so the page paints once.
-            var grantsTask = GrantClient.ListAsync();
-            var requestsTask = Upgrades.ListPendingForMyPatientAsync();
-            await Task.WhenAll(grantsTask, requestsTask);
-            grants = await grantsTask;
-            pendingRequests = await requestsTask;
-        }
-        catch { /* keep current lists */ }
-        finally { loading = false; }
+        // Each fetch is guarded individually so a transient failure in one
+        // (e.g. the upgrade-requests endpoint) doesn't blank BOTH lists.
+        // Bug seen in production v1.0: a failed pendingRequests fetch via
+        // Task.WhenAll propagated and the outer catch silently emptied the
+        // grants list too, making fresh invitations look as if they had
+        // never happened.
+        try { grants = await GrantClient.ListAsync(); } catch { /* keep */ }
+        try { pendingRequests = await Upgrades.ListPendingForMyPatientAsync(); } catch { /* keep */ }
+        loading = false;
     }
 
     private async Task InviteAsync()
